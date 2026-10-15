@@ -164,7 +164,7 @@ details { margin-top: 14px; } summary { cursor: pointer; font-weight: 700; }
       <li>Right-click the crafting table for the 3×3 grid. Make a wooden pickaxe, mine stone, and upgrade to stone tools. Craft a furnace.</li>
       <li>Find coal and iron ore underground. Right-click the furnace, put iron ore on top and coal below, and make iron tools.</li>
       <li>Dig deep (below height 14) for diamonds.</li>
-      <li>Make a diamond pickaxe and mine <b>obsidian</b> (found deep down, near the bottom of the world). Break <b>gravel</b> for flint and craft <b>flint and steel</b>.</li>
+      <li>Explore <b>caves</b> (look for openings in the ground) and dig down into <b>deepslate</b> — press <kbd>F3</kbd> to see your height. Diamonds are below about −10; <b>obsidian</b> is near the very bottom (about −36 to −26). Mine it with a diamond pickaxe. Break <b>gravel</b> for flint and craft <b>flint and steel</b>.</li>
       <li>Build an obsidian frame 4 wide and 5 tall (a 2×3 hole) and light it to open a portal to <b>the Nether</b>.</li>
       <li>In the Nether, find a nether-brick <b>fortress</b> and fight <b>blazes</b> for blaze rods. Craft them into blaze powder.</li>
       <li>Back in the Overworld, hunt <b>endermen</b> at night for ender pearls (don't look at their faces!). Pearl + blaze powder = <b>Eye of Ender</b>.</li>
@@ -300,13 +300,14 @@ var TILES = ['grass_top', 'grass_side', 'dirt', 'stone', 'cobble', 'log_side', '
   'coal_ore', 'iron_ore', 'diamond_ore', 'bedrock', 'glass', 'table_top', 'table_side', 'furnace_front', 'furnace_side',
   'altar_top', 'altar_side', 'white', 'crack0', 'crack1', 'crack2', 'crack3', 'crack4',
   'obsidian', 'netherrack', 'lava', 'glowstone', 'nether_brick', 'spawner', 'stone_brick', 'frame_top', 'frame_side', 'frame_eye',
-  'end_portal', 'end_stone', 'nether_portal', 'gravel'];
+  'end_portal', 'end_stone', 'nether_portal', 'gravel', 'deepslate', 'cobbled_deepslate', 'deepslate_coal', 'deepslate_iron', 'deepslate_diamond'];
 var TI = {}; TILES.forEach(function (n, i) { TI[n] = i; });
 
 var B = { AIR: 0, GRASS: 1, DIRT: 2, STONE: 3, COBBLE: 4, LOG: 5, LEAVES: 6, PLANKS: 7, SAND: 8, WATER: 9,
   COAL_ORE: 10, IRON_ORE: 11, DIAMOND_ORE: 12, BEDROCK: 13, GLASS: 14, TABLE: 15, FURNACE: 16, ALTAR: 17,
   OBSIDIAN: 18, NETHERRACK: 19, LAVA: 20, GLOWSTONE: 21, NETHER_BRICK: 22, SPAWNER: 23, STONE_BRICK: 24, END_FRAME: 25,
-  END_FRAME_EYE: 26, END_PORTAL: 27, END_STONE: 28, NETHER_PORTAL: 29, GRAVEL: 30 };
+  END_FRAME_EYE: 26, END_PORTAL: 27, END_STONE: 28, NETHER_PORTAL: 29, GRAVEL: 30,
+  DEEPSLATE: 31, COBBLED_DEEPSLATE: 32, DEEP_COAL: 33, DEEP_IRON: 34, DEEP_DIAMOND: 35 };
 var BL = [];
 function def(id, o) { BL[id] = Object.assign({ solid: true, opaque: true, hard: 1, tier: 0, pick: false, drop: id }, o); }
 def(0, { name: 'Air', solid: false, opaque: false });
@@ -340,6 +341,11 @@ def(27, { name: 'End Portal', tex: 'end_portal', solid: false, opaque: false, ha
 def(28, { name: 'End Stone', tex: 'end_stone', hard: 3, pick: true, tier: 1 });
 def(29, { name: 'Nether Portal', tex: 'nether_portal', solid: false, opaque: false, hard: 0, noItem: true, portal: true, glow: true, drop: 0 });
 def(30, { name: 'Gravel', tex: 'gravel', hard: 0.6 });
+def(31, { name: 'Deepslate', tex: 'deepslate', hard: 3, pick: true, tier: 1, drop: 32 });
+def(32, { name: 'Cobbled Deepslate', tex: 'cobbled_deepslate', hard: 3.5, pick: true, tier: 1 });
+def(33, { name: 'Deepslate Coal Ore', tex: 'deepslate_coal', hard: 4.5, pick: true, tier: 1, drop: 101 });
+def(34, { name: 'Deepslate Iron Ore', tex: 'deepslate_iron', hard: 4.5, pick: true, tier: 2, drop: 11 });
+def(35, { name: 'Deepslate Diamond Ore', tex: 'deepslate_diamond', hard: 4.5, pick: true, tier: 3, drop: 103 });
 var TEX = [];
 BL.forEach(function (b, i) {
   if (!b.tex) return;
@@ -391,7 +397,7 @@ shapeless(108, 1, [102, 107]);
 shapeless(140, 2, [109]);
 shapeless(142, 1, [141, 140]);
 shaped(24, 4, ['SS', 'SS'], { S: 3 });
-var SMELT = { 11: 102, 8: 14, 4: 3, 105: 106 };       // furnace input -> output
+var SMELT = { 11: 102, 8: 14, 4: 3, 105: 106, 32: 31 };       // furnace input -> output
 var FUEL = { 101: 8, 5: 1.5, 7: 1.5, 15: 1.5, 100: 0.5 }; // items smelted per fuel item
 var COOK = 3;                                            // seconds per item
 
@@ -435,15 +441,25 @@ atlas.width = atlas.height = 256;
   });
   tile('sand', function () { return vary([219, 207, 160], 22); });
   tile('water', function () { var c = vary([48, 96, 214], 24); c.push(170); return c; });
-  function ore(name, col) {
+  function ore(name, col, base) {
+    base = base || STONE;
     var spots = {};
     for (var k = 0; k < 5; k++) {
       var cx = 2 + Math.floor(r() * 11), cy = 2 + Math.floor(r() * 11);
       spots[cx + ',' + cy] = spots[(cx + 1) + ',' + cy] = spots[cx + ',' + (cy + 1)] = 1;
       if (r() < 0.6) spots[(cx + 1) + ',' + (cy + 1)] = 1;
     }
-    tile(name, function (x, y) { return spots[x + ',' + y] ? vary(col, 30) : vary(STONE, 30); });
+    tile(name, function (x, y) { return spots[x + ',' + y] ? vary(col, 30) : base === STONE ? vary(STONE, 30) : deep(x, y); });
   }
+  function deep(x, y) { return (y + (x >> 2)) % 4 === 0 ? vary([66, 66, 74], 12) : vary([96, 96, 106], 18); }
+  tile('deepslate', deep);
+  tile('cobbled_deepslate', function (x, y) {
+    var line = (y % 5 === 0) || ((x + (Math.floor(y / 5) % 2) * 3) % 6 === 0);
+    return line ? vary([38, 38, 44], 12) : vary([80, 80, 88], 26);
+  });
+  ore('deepslate_coal', [18, 18, 18], 'deep');
+  ore('deepslate_iron', [206, 152, 116], 'deep');
+  ore('deepslate_diamond', [80, 226, 222], 'deep');
   ore('coal_ore', [30, 30, 30]);
   ore('iron_ore', [216, 162, 122]);
   ore('diamond_ore', [90, 230, 225]);
@@ -595,7 +611,7 @@ function iconURL(id) {
 /* ================= World (infinite, made of 16x16 chunks) ================= */
 // Each chunk is generated from the seed the first time it's needed, so the world goes on forever.
 // Player changes are kept separately and re-applied, so faraway chunks can be unloaded and rebuilt.
-var WY = 48, CS = 16, SEA = 20, RENDER_DIST = clamp(Number(load('blockcraft-dist', 5)) || 5, 3, 8);
+var WY = 96, CS = 16, SEA = 60, Y_SHOW = 40, NETHER_H = 48, DEEP_Y = 40, RENDER_DIST = clamp(Number(load('blockcraft-dist', 5)) || 5, 3, 8);
 var chunkMap = new Map(), lastC = null, gen = null;
 var edits = new Map();       // packed x,y,z -> block id (for saving and multiplayer)
 var chunkEdits = new Map();  // chunk key -> Map(local index -> block id)
@@ -614,8 +630,10 @@ function withDim(n, fn) { var was = curDim; useDim(n); try { return fn(); } fina
 function dimEdits(n) { return n === curDim ? edits : dimState(n).edits; }
 function ck(cx, cz) { return (cx + 32768) * 65536 + (cz + 32768); }
 function li(lx, y, lz) { return (y * CS + lz) * CS + lx; }
-function packKey(x, y, z) { return ((x + 1048576) * 2097152 + (z + 1048576)) * 64 + y; }
-function unpackKey(k) { var y = k % 64, r = (k - y) / 64, z = r % 2097152; return [(r - z) / 2097152 - 1048576, y, z - 1048576]; }
+function packKey(x, y, z) { return ((x + 1048576) * 2097152 + (z + 1048576)) * 128 + y; }
+function unpackKey(k) { var y = k % 128, r = (k - y) / 128, z = r % 2097152; return [(r - z) / 2097152 - 1048576, y, z - 1048576]; }
+// Saves from before the world got taller packed heights into 64 slots.
+function unpackOld(k) { var y = k % 64, r = (k - y) / 64, z = r % 2097152; return [(r - z) / 2097152 - 1048576, y, z - 1048576]; }
 function inWorld(x, y, z) { return y >= 0 && y < WY; }
 function chunkAt(cx, cz) {
   if (lastC && lastC.cx === cx && lastC.cz === cz) return lastC;
@@ -643,7 +661,38 @@ function hash3(x, y, z) {
   n = Math.imul(n ^ (n >>> 13), 1274126177);
   return ((n ^ (n >>> 16)) >>> 0) / 4294967296;
 }
-function heightAt(x, z) { return clamp(Math.floor(6 + gen.n1(x / 40, z / 40) * 30 + gen.n2(x / 12, z / 12) * 5), 3, WY - 12); }
+function heightAt(x, z) { return clamp(Math.floor(46 + gen.n1(x / 40, z / 40) * 30 + gen.n2(x / 12, z / 12) * 5), 43, WY - 12); }
+
+/* ---------- Caves ----------
+   Noise is sampled on a coarse 4-block grid and blended, which is fast and gives smooth tunnels.
+   Winding "spaghetti" tunnels are where two noise fields are both near the middle; they can reach the
+   surface, making cave entrances. Bigger "cheese" caverns open up deeper underground. */
+function caveLattice(gx, gy, gz) {
+  var x = gx * 4, y = gy * 4, z = gz * 4;
+  return [noise3(x / 30, y / 16, z / 30), noise3(x / 30 + 100, y / 16, z / 30 + 50), noise3(x / 50 + 300, y / 24, z / 50)];
+}
+function caveSampler() {
+  var cache = new Map();
+  function L(gx, gy, gz) {
+    var k = ((gx + 65536) * 131072 + (gz + 65536)) * 64 + gy, v = cache.get(k);
+    if (!v) { v = caveLattice(gx, gy, gz); cache.set(k, v); }
+    return v;
+  }
+  return function (x, y, z) {
+    var gx = Math.floor(x / 4), gy = Math.floor(y / 4), gz = Math.floor(z / 4), u = (x - gx * 4) / 4, v = (y - gy * 4) / 4, w = (z - gz * 4) / 4, out = [0, 0, 0];
+    for (var c = 0; c < 8; c++) {
+      var dx = c & 1, dy = (c >> 1) & 1, dz = c >> 2, wt = (dx ? u : 1 - u) * (dy ? v : 1 - v) * (dz ? w : 1 - w), s2 = L(gx + dx, gy + dy, gz + dz);
+      out[0] += s2[0] * wt; out[1] += s2[1] * wt; out[2] += s2[2] * wt;
+    }
+    return out;
+  };
+}
+function isCave(n, y, h) {
+  if (y <= 4) return false;
+  var tunnel = Math.abs(n[0] - 0.5) < 0.045 && Math.abs(n[1] - 0.5) < 0.045;
+  var cavern = n[2] > 0.705 && y < h - 12;
+  return tunnel || cavern;
+}
 function genChunk(cx, cz) {
   var b = new Uint8Array(CS * CS * WY);
   if (curDim === 'nether') genNether(b, cx, cz); else if (curDim === 'end') genEnd(b, cx, cz); else genOverworld(b, cx, cz);
@@ -662,11 +711,14 @@ function stamp(b, x0, z0, box, fn) {
 function genOverworld(b, cx, cz) {
   var x0 = cx * CS, z0 = cz * CS;
   var rng = mulberry32((gen.seed ^ Math.imul(cx, 73856093) ^ Math.imul(cz, 19349663)) | 0);
+  var hs = new Int16Array(CS * CS);
   for (var lz = 0; lz < CS; lz++) for (var lx = 0; lx < CS; lx++) {
     var x = x0 + lx, z = z0 + lz, h = heightAt(x, z), beach = h <= SEA + 1;
+    hs[lz * CS + lx] = h;
     for (var y = 0; y <= h; y++) {
       var id;
       if (y === 0 || (y <= 2 && hash3(x, y, z) < 0.5)) id = B.BEDROCK;
+      else if (y < DEEP_Y - 2 || (y < DEEP_Y + 2 && hash3(x, y + 77, z) < (DEEP_Y + 2 - y) / 4)) id = B.DEEPSLATE;
       else if (y < h - 3) id = B.STONE;
       else if (beach) id = B.SAND;
       else id = y === h ? B.GRASS : B.DIRT;
@@ -677,26 +729,43 @@ function genOverworld(b, cx, cz) {
     var gv = gen.n2(x / 9 + 200, z / 9 + 200);
     if ((beach && h < SEA && gv > 0.6) || (!beach && gv > 0.74)) { b[li(lx, h, lz)] = B.GRAVEL; if (h > 1) b[li(lx, h - 1, lz)] = B.GRAVEL; }
   }
-  function veins(id, count, size, maxY) {
+  var DEEP_ORE = {}; DEEP_ORE[B.COAL_ORE] = B.DEEP_COAL; DEEP_ORE[B.IRON_ORE] = B.DEEP_IRON; DEEP_ORE[B.DIAMOND_ORE] = B.DEEP_DIAMOND; DEEP_ORE[B.OBSIDIAN] = B.OBSIDIAN;
+  function veins(id, count, size, minY, maxY) {
     for (var v = 0; v < count; v++) {
-      var vx = Math.floor(rng() * CS), vy = 1 + Math.floor(rng() * maxY), vz = Math.floor(rng() * CS);
+      var vx = Math.floor(rng() * CS), vy = minY + Math.floor(rng() * (maxY - minY)), vz = Math.floor(rng() * CS);
       for (var k = 0; k < size; k++) {
-        if (vx >= 0 && vx < CS && vz >= 0 && vz < CS && vy > 0 && vy < WY && b[li(vx, vy, vz)] === B.STONE) b[li(vx, vy, vz)] = id;
+        if (vx >= 0 && vx < CS && vz >= 0 && vz < CS && vy > 0 && vy < WY) {
+          var here2 = b[li(vx, vy, vz)];
+          if (here2 === B.STONE) b[li(vx, vy, vz)] = id;
+          else if (here2 === B.DEEPSLATE) b[li(vx, vy, vz)] = DEEP_ORE[id];
+        }
         var dir = Math.floor(rng() * 6);
         if (dir === 0) vx++; else if (dir === 1) vx--; else if (dir === 2) vy++; else if (dir === 3) vy--; else if (dir === 4) vz++; else vz--;
       }
     }
   }
-  veins(B.COAL_ORE, 5, 7, 40);
-  veins(B.IRON_ORE, 3, 5, 30);
-  veins(B.DIAMOND_ORE, rng() < 0.75 ? 1 : 0, 4, 13);
-  veins(B.OBSIDIAN, rng() < 0.55 ? 1 : 0, 7, 9);
+  veins(B.COAL_ORE, 9, 7, 36, 86);
+  veins(B.IRON_ORE, 7, 5, 8, 72);
+  veins(B.DIAMOND_ORE, (rng() < 0.8 ? 1 : 0) + (rng() < 0.4 ? 1 : 0), 4, 4, 30);
+  veins(B.OBSIDIAN, rng() < 0.6 ? 1 : 0, 7, 4, 14);
+  // carve caves (after ores, so ore shows in cave walls); lava pools at the very bottom
+  var cave = caveSampler();
+  for (var cz2 = 0; cz2 < CS; cz2++) for (var cx2 = 0; cx2 < CS; cx2++) {
+    var ch = hs[cz2 * CS + cx2], wet = ch <= SEA + 1;
+    for (var cy = 5; cy <= ch; cy++) {
+      if (wet && cy >= SEA - 5) break;       // keep the sea floor sealed
+      if (!isCave(cave(x0 + cx2, cy, z0 + cz2), cy, ch)) continue;
+      var bi = li(cx2, cy, cz2);
+      if (b[bi] === B.BEDROCK || b[bi] === B.WATER) continue;
+      b[bi] = cy <= 9 ? B.LAVA : 0;
+    }
+  }
   // Trees: decided per column, so trees near a chunk edge spill their leaves correctly into neighbours.
   var trees = [];
   for (var tz = z0 - 2; tz < z0 + CS + 2; tz++) for (var tx = x0 - 2; tx < x0 + CS + 2; tx++) {
     if (hash3(tx, 999, tz) > 0.012) continue;
     var th0 = heightAt(tx, tz);
-    if (th0 <= SEA + 1) continue;
+    if (th0 <= SEA + 1 || isCave(cave(tx, th0, tz), th0, th0)) continue; // no trees floating over cave mouths
     trees.push([tx, th0, tz, hash3(tx, 998, tz) < 0.5 ? 4 : 5]);
   }
   function put(x, y, z, id, onlyAir) {
@@ -727,7 +796,7 @@ function strongholds() {
   var base = hash3(1, 2, 3) * Math.PI * 2, list = [];
   for (var k = 0; k < 3; k++) {
     var a = base + k * Math.PI * 2 / 3, d = 260 + hash3(k, 5, 9) * 160;
-    list.push({ x: Math.round(Math.cos(a) * d), z: Math.round(Math.sin(a) * d), y: 11 });
+    list.push({ x: Math.round(Math.cos(a) * d), z: Math.round(Math.sin(a) * d), y: 22 });
   }
   gen.sh = list;
   return list;
@@ -770,18 +839,18 @@ function genNether(b, cx, cz) {
   var x0 = cx * CS, z0 = cz * CS;
   for (var lz = 0; lz < CS; lz++) for (var lx = 0; lx < CS; lx++) {
     var x = x0 + lx, z = z0 + lz;
-    for (var y = 0; y < WY; y++) {
+    for (var y = 0; y < NETHER_H; y++) {
       var id;
-      if (y === 0 || y === WY - 1 || (y <= 2 && hash3(x, y, z) < 0.5) || (y >= WY - 3 && hash3(x, y, z) < 0.5)) id = B.BEDROCK;
+      if (y === 0 || y === NETHER_H - 1 || (y <= 2 && hash3(x, y, z) < 0.5) || (y >= NETHER_H - 3 && hash3(x, y, z) < 0.5)) id = B.BEDROCK;
       else {
         var d = noise3(x / 22, y / 11, z / 22) * 0.65 + noise3(x / 9, y / 7, z / 9) * 0.35;
-        d += (y < 7 ? (7 - y) * 0.07 : 0) + (y > WY - 9 ? (y - (WY - 9)) * 0.07 : 0);
+        d += (y < 7 ? (7 - y) * 0.07 : 0) + (y > NETHER_H - 9 ? (y - (NETHER_H - 9)) * 0.07 : 0);
         id = d > 0.53 ? B.NETHERRACK : (y <= NETHER_LAVA ? B.LAVA : 0);
       }
       b[li(lx, y, lz)] = id;
     }
     // glowstone hanging from the ceiling
-    for (var gy = 30; gy < WY - 2; gy++) {
+    for (var gy = 30; gy < NETHER_H - 2; gy++) {
       if (!b[li(lx, gy, lz)] && b[li(lx, gy + 1, lz)] === B.NETHERRACK && hash3(x, gy, z) < 0.035) {
         b[li(lx, gy, lz)] = B.GLOWSTONE;
         if (!b[li(lx, gy - 1, lz)] && hash3(x, gy - 1, z) < 0.6) b[li(lx, gy - 1, lz)] = B.GLOWSTONE;
@@ -956,6 +1025,16 @@ var UVS = [[0, 1], [1, 1], [1, 0], [0, 0]], ORDER = [0, 1, 2, 0, 2, 3];
 function tileUV(t, u, v) { return [((t % 16) * 16 + (u ? 15.98 : 0.02)) / 256, (Math.floor(t / 16) * 16 + (v ? 15.98 : 0.02)) / 256]; }
 function buildChunk(c) {
   var op = [], wa = [], b = c.b, x0 = c.cx * CS, z0 = c.cz * CS;
+  var shade = curDim === 'overworld', tops = null;
+  if (shade) {
+    tops = new Int16Array(18 * 18);
+    for (var tz = -1; tz <= CS; tz++) for (var tx = -1; tx <= CS; tx++) {
+      var ty = WY - 1;
+      if (tx >= 0 && tz >= 0 && tx < CS && tz < CS) { while (ty > 0 && !BL[b[li(tx, ty, tz)]].opaque) ty--; }
+      else { while (ty > 0 && !BL[getB(x0 + tx, ty, z0 + tz)].opaque) ty--; }
+      tops[(tz + 1) * 18 + tx + 1] = ty + 1;
+    }
+  }
   for (var y = 0; y < WY; y++) for (var lz = 0; lz < CS; lz++) for (var lx = 0; lx < CS; lx++) {
     var id = b[li(lx, y, lz)];
     if (!id) continue;
@@ -973,6 +1052,10 @@ function buildChunk(c) {
       var t = TEX[id][F.t];
       var drop = bd.liquid && f === 2 && nid === 0 ? 0.12 : id === B.END_PORTAL && f === 2 ? 0.25 : 0;
       var sh = bd.glow ? 1.2 : F.s;
+      if (shade && !bd.glow && nx >= -1 && nx <= CS && nz >= -1 && nz <= CS) {
+        var depth = tops[(nz + 1) * 18 + nx + 1] - ny;
+        if (depth > 0) sh *= Math.max(0.5, 1 - depth * 0.04);
+      }
       for (var k = 0; k < 6; k++) {
         var q = ORDER[k], cc = F.c[q], uv = tileUV(t, UVS[q][0], UVS[q][1]);
         arr.push(x + cc[0], y + cc[1] - (cc[1] ? drop : 0), z + cc[2], uv[0], uv[1], sh, sh, sh);
@@ -1666,7 +1749,7 @@ function buildPortalNear(tx, tz, alongX) {
     for (var a = 0; a < Math.max(1, r * 6) && !spot; a++) {
       var x = Math.round(tx + Math.cos(a / Math.max(1, r * 6) * Math.PI * 2) * r), z = Math.round(tz + Math.sin(a / Math.max(1, r * 6) * Math.PI * 2) * r);
       if (curDim === 'nether') {
-        for (var y = NETHER_LAVA + 2; y < WY - 6; y++) {
+        for (var y = NETHER_LAVA + 2; y < NETHER_H - 6; y++) {
           if (isSolid(x, y - 1, z) && !getB(x, y, z) && !getB(x, y + 1, z) && !getB(x, y + 2, z) && !getB(x, y + 3, z)) { spot = [x, y, z]; break; }
         }
       } else {
@@ -2474,7 +2557,7 @@ function saveGame() {
   if (net.role === 'guest' || !game.running) return;
   var allEdits = {};
   Object.keys(DIM_NAMES).forEach(function (n) { allEdits[n] = Array.from(dimEdits(n).entries()); });
-  var ok = store(SAVE, { v: 3, dim: player.dim, spawn: spawn, seed: game.seed, mode: game.mode, time: game.time, edits: allEdits, inv: inv, sel: sel,
+  var ok = store(SAVE, { v: 4, dim: player.dim, spawn: spawn, seed: game.seed, mode: game.mode, time: game.time, edits: allEdits, inv: inv, sel: sel,
     furnaces: furnaces, pos: player.pos, hp: player.hp, dragonDead: game.dragonDead, playTime: game.playTime, pvp: game.pvp });
   if (!ok) msg("Couldn't save — this browser is blocking storage.");
 }
@@ -2703,7 +2786,7 @@ function drawSky(a, e, sky, light) {
 }
 function cloudHash(x, z) { var n = Math.imul(x, 73856093) ^ Math.imul(z, 19349663); n = Math.imul(n ^ (n >>> 13), 1274126177); return ((n ^ (n >>> 16)) >>> 0) / 4294967296; }
 function drawClouds(a, e, light) {
-  var CELL = 12, Y = WY + 16, drift = (game.playTime * 1.3) % (CELL * 100000);
+  var CELL = 12, Y = SEA + 52, drift = (game.playTime * 1.3) % (CELL * 100000);
   var gx0 = Math.floor((e[0] - drift) / CELL), gz0 = Math.floor(e[2] / CELL), c = 0.12 + 0.88 * light;
   for (var dz = -11; dz <= 11; dz++) for (var dx = -11; dx <= 11; dx++) {
     var gx = gx0 + dx, gz = gz0 + dz;
@@ -2897,7 +2980,7 @@ function renderOverlay(mvp) {
   // debug
   if (debugOn) {
     var hours = Math.floor(((game.time + 0.25) % 1) * 24);
-    $('debug').textContent = 'XYZ: ' + player.pos.map(function (v) { return v.toFixed(1); }).join(' / ') +
+    $('debug').textContent = 'XYZ: ' + [player.pos[0], player.pos[1] - (curDim === 'overworld' ? Y_SHOW : 0), player.pos[2]].map(function (v) { return v.toFixed(1); }).join(' / ') +
       '\nTime: ' + hours + ':00 ' + (isNight() ? '(night)' : '(day)') + '\nChunks: ' + chunkMap.size + '  Mobs: ' + mobs.length + '  Players: ' + (Object.keys(others).length + 1) +
       '\nDimension: ' + curDim + '\nMode: ' + game.mode + (net.role !== 'solo' ? '  (' + net.role + ')' : '');
   }
@@ -2990,18 +3073,33 @@ function continueWorld() {
   game.pvp = s.pvp !== false;
   game.name = $('name').value.trim() || game.name;
   net.role = 'solo'; net.peers = []; others = {};
+  // Saves from before version 4 had the ground 40 blocks lower in the Overworld.
+  var lift = s.v >= 4 ? 0 : Y_SHOW;
   furnaces = {};
-  Object.keys(s.furnaces || {}).forEach(function (k) { furnaces[k.indexOf(':') === -1 ? 'overworld:' + k : k] = s.furnaces[k]; });
+  Object.keys(s.furnaces || {}).forEach(function (k) {
+    var key = k.indexOf(':') === -1 ? 'overworld:' + k : k, parts = key.split(':'), xyz = parts[1].split(',').map(Number);
+    if (parts[0] === 'overworld') xyz[1] += lift;
+    furnaces[parts[0] + ':' + xyz.join(',')] = s.furnaces[k];
+  });
   initGen(game.seed);
-  if (s.v === 3) {
+  if (s.v >= 3) {
     Object.keys(DIM_NAMES).forEach(function (n) {
-      withDim(n, function () { (s.edits[n] || []).forEach(function (e) { var p = unpackKey(e[0]); applyEdit(p[0], p[1], p[2], e[1]); }); });
+      withDim(n, function () {
+        (s.edits[n] || []).forEach(function (e) {
+          var p = s.v >= 4 ? unpackKey(e[0]) : unpackOld(e[0]);
+          applyEdit(p[0], p[1] + (n === 'overworld' ? lift : 0), p[2], e[1]);
+        });
+      });
     });
   } else {
     (s.edits || []).forEach(function (e) {
-      if (s.v === 2) { var p = unpackKey(e[0]); applyEdit(p[0], p[1], p[2], e[1]); }
-      else applyEdit(e[0] % 128, Math.floor(e[0] / 16384), Math.floor(e[0] / 128) % 128, e[1]); // older 128x128 saves
+      if (s.v === 2) { var p = unpackOld(e[0]); applyEdit(p[0], p[1] + lift, p[2], e[1]); }
+      else applyEdit(e[0] % 128, Math.floor(e[0] / 16384) + lift, Math.floor(e[0] / 128) % 128, e[1]); // older 128x128 saves
     });
+  }
+  if (lift) {
+    if (s.spawn) s.spawn[1] += lift;
+    if ((s.dim || 'overworld') === 'overworld' && s.pos) s.pos[1] += lift;
   }
   if (s.spawn) spawn = s.spawn; else findSpawn();
   player.dim = DIM_NAMES[s.dim] ? s.dim : 'overworld';
@@ -3068,7 +3166,7 @@ function matchGrid() {
         var ch = rc.pat[rr][mirror ? w - 1 - cc : cc] || ' ';
         var want = ch === ' ' ? 0 : rc.key[ch];
         var got = craftGrid[(minR + rr) * 3 + minC + cc];
-        if ((got ? got.id : 0) !== want) ok = false;
+        if ((got ? (got.id === B.COBBLED_DEEPSLATE ? B.COBBLE : got.id) : 0) !== want) ok = false;
       }
       if (ok) return rc;
     }
