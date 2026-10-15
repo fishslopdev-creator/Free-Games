@@ -33,7 +33,7 @@ These are free games! Quick, quiet games that run in any web browser: no downloa
 
 ## BlockCraft multiplayer
 
-GitHub Pages only hosts files, so it can't run a game server. Instead, BlockCraft connects players' browsers directly (WebRTC). The host presses Esc → **Invite a friend** and sends the invite code; the friend clicks **Join a friend**, pastes it, and sends back a reply code. Some school or office networks block these direct connections; if so, it won't connect there.
+GitHub Pages only hosts files, so it can't run a game server. Instead, BlockCraft connects players' browsers directly (WebRTC). The host presses Esc → **Invite a friend** and gets a 6-digit code; friends click **Join a friend** and type it in. The code is a room name on [ntfy.sh](https://ntfy.sh), a free public message relay that passes the one-time connection set-up between the browsers; after that, game data goes directly between players. If a network blocks ntfy.sh, there's a **Use long codes instead** option that works without it. Some school or office networks block direct connections between computers entirely; then multiplayer won't work there.
 
 ## Adding a game
 

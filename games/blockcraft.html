@@ -64,6 +64,40 @@ details { margin-top: 14px; } summary { cursor: pointer; font-weight: 700; }
 .recipe button { margin: 0; padding: 6px 10px; }
 .invwrap { display: flex; gap: 16px; flex-wrap: wrap; }
 :focus-visible { outline: 3px solid #ffb547; outline-offset: 2px; }
+.small { font-size: 13px; }
+#cursor { position: fixed; z-index: 50; pointer-events: none; transform: translate(-50%, -50%); width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; }
+#cursor img { width: 32px; height: 32px; image-rendering: pixelated; }
+#cursor b { position: absolute; right: 0; bottom: -2px; font-size: 13px; text-shadow: 1px 1px 0 #000; }
+.invtop { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+.invmain { flex: 0 1 438px; min-width: 0; }
+.book { width: 250px; background: #0e1016; border: 1px solid var(--border); border-radius: 10px; padding: 10px; }
+.book h3 { margin: 0 0 6px; font-size: 1rem; }
+.book h4 { margin: 10px 0 4px; font-size: .9rem; }
+.booklist { display: grid; grid-template-columns: repeat(5, 40px); gap: 3px; max-height: 176px; overflow: auto; margin: 6px 0; }
+.booklist .slot { width: 40px; height: 40px; cursor: pointer; }
+.slot.dim img { opacity: .3; }
+.slot.red { border-color: #b33; }
+.preview { border-top: 1px solid var(--border); padding-top: 8px; font-size: 13px; color: var(--muted); min-height: 20px; }
+.preview strong { color: var(--fg); }
+.pg { display: grid; grid-template-columns: repeat(3, 34px); gap: 2px; margin: 6px 0; }
+.pg span { width: 34px; height: 34px; background: rgba(40,40,48,.8); border: 1px solid #555; border-radius: 3px; display: flex; align-items: center; justify-content: center; }
+.pg img { width: 24px; height: 24px; image-rendering: pixelated; }
+.smelt { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); margin: 3px 0; }
+.smelt img { width: 20px; height: 20px; image-rendering: pixelated; }
+.craftrow { display: flex; align-items: center; gap: 14px; margin: 4px 0 12px; }
+.cgrid { display: grid; gap: 3px; }
+.cgrid.s2 { grid-template-columns: repeat(2, 46px); }
+.cgrid.s3 { grid-template-columns: repeat(3, 46px); }
+.arr { font-size: 28px; color: var(--muted); }
+.prog { width: 48px; height: 10px; background: #2a2e3a; border-radius: 5px; overflow: hidden; }
+.prog i { display: block; height: 100%; background: #e8e8e8; width: 0; }
+.fcol { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.flame { width: 14px; height: 18px; background: #2a2e3a; border-radius: 3px; display: flex; align-items: flex-end; overflow: hidden; }
+.flame i { display: block; width: 100%; background: linear-gradient(#ffd34d, #ff7a1a); }
+.slot.big { width: 56px; height: 56px; }
+.grid.hot { margin-top: 8px; }
+.bigcode { font: 700 2.6rem/1.2 ui-monospace, Consolas, monospace; letter-spacing: .3em; text-align: center; padding: 12px; background: #0e1016; border-radius: 10px; border: 1px solid var(--border); margin: 10px 0; }
+.codein { font: 700 1.6rem ui-monospace, Consolas, monospace; letter-spacing: .3em; max-width: 220px; }
 </style>
 </head>
 <body>
@@ -108,9 +142,9 @@ details { margin-top: 14px; } summary { cursor: pointer; font-weight: 700; }
   <details>
     <summary>How to beat the game</summary>
     <ol>
-      <li>Punch a tree for logs, then craft planks, sticks and a crafting table.</li>
-      <li>Make a wooden pickaxe, mine stone, and upgrade to stone tools. Craft a furnace.</li>
-      <li>Find coal and iron ore underground. Smelt iron in the furnace and make iron tools.</li>
+      <li>Punch a tree for logs. Press <kbd>E</kbd> and craft planks, sticks and a crafting table in your 2×2 grid. The recipe book shows every pattern and can fill the grid for you.</li>
+      <li>Right-click the crafting table for the 3×3 grid. Make a wooden pickaxe, mine stone, and upgrade to stone tools. Craft a furnace.</li>
+      <li>Find coal and iron ore underground. Right-click the furnace, put iron ore on top and coal below, and make iron tools.</li>
       <li>Dig deep (below height 14) for diamonds.</li>
       <li>Craft a <b>Dragon Altar</b> (3 diamonds, 4 iron, 2 cobblestone) and place it to summon the Sky Dragon.</li>
       <li>Hit the dragon when it swoops at you or lands by the altar. Tip: a <b>Mace</b> hits much harder if you jump down onto your target.</li>
@@ -129,49 +163,67 @@ details { margin-top: 14px; } summary { cursor: pointer; font-weight: 700; }
 </div></div>
 
 <div id="inv" class="screen hidden"><div class="box">
-  <h2>Inventory</h2>
-  <p id="invhint"></p>
-  <div class="invwrap">
-    <div>
-      <div id="palette" class="grid"></div>
-      <div id="invgrid" class="grid"></div>
+  <h2 id="invTitle">Inventory</h2>
+  <div class="invtop">
+    <div id="book" class="book">
+      <h3>Recipe Book</h3>
+      <label class="inline small" style="margin:0"><input type="checkbox" id="craftableOnly"> Craftable only</label>
+      <div id="bookList" class="booklist"></div>
+      <div id="bookPreview" class="preview"></div>
+      <h4>Furnace</h4>
+      <div id="smeltList"></div>
     </div>
-    <div style="flex:1;min-width:260px">
-      <h2 style="font-size:1.1rem">Crafting</h2>
-      <p id="stations"></p>
-      <div id="recipes" class="recipes"></div>
+    <div class="invmain">
+      <div id="palette" class="grid"></div>
+      <div id="craftArea" class="craftrow"></div>
+      <div id="invgrid" class="grid"></div>
+      <div id="hotgrid" class="grid hot"></div>
+      <p id="invhint" class="small"></p>
     </div>
   </div>
+  <button id="bookToggle" type="button" class="sec">Recipe book</button>
   <button id="invClose" type="button">Close (E)</button>
 </div></div>
+<div id="cursor" class="hidden" aria-hidden="true"></div>
 
 <div id="host" class="screen hidden"><div class="box">
   <h2>Invite a friend</h2>
-  <p>GitHub Pages can only host files; it can't run a game server. So your computers connect straight to each other after you swap two codes once (send them by chat, email, or anything else).</p>
-  <ol>
-    <li>Click <b>Make invite code</b> and send the code to your friend.</li>
-    <li>Your friend opens BlockCraft, clicks <b>Join a friend</b>, pastes it, and sends you back their reply code.</li>
-    <li>Paste the reply code below and click <b>Connect</b>. Repeat for each extra friend.</li>
-  </ol>
-  <button id="mkInvite" type="button">Make invite code</button>
-  <textarea id="inviteOut" readonly aria-label="Your invite code"></textarea>
-  <button id="copyInvite" type="button" class="sec">Copy invite code</button>
-  <label for="replyIn">Friend's reply code</label>
-  <textarea id="replyIn"></textarea>
-  <button id="connect" type="button">Connect</button>
-  <button id="hostBack" type="button" class="sec">Back</button>
+  <p>Give your friend this code. They open BlockCraft, click <b>Join a friend</b>, and type it in. Several friends can use the same code.</p>
+  <div id="hostCode" class="bigcode">······</div>
   <p id="hostStatus" role="status"></p>
+  <p class="small">The code only introduces your computers to each other, through ntfy.sh, a free public message relay. After that, the game goes directly between you. If your network blocks it, use the long codes below.</p>
+  <details>
+    <summary>Use long codes instead</summary>
+    <ol>
+      <li>Click <b>Make invite code</b> and send the code to your friend.</li>
+      <li>Your friend clicks <b>Join a friend</b>, opens <b>Use long codes instead</b>, pastes it, and sends back a reply code.</li>
+      <li>Paste the reply code below and click <b>Connect</b>.</li>
+    </ol>
+    <button id="mkInvite" type="button">Make invite code</button>
+    <textarea id="inviteOut" readonly aria-label="Your invite code"></textarea>
+    <button id="copyInvite" type="button" class="sec">Copy invite code</button>
+    <label for="replyIn">Friend's reply code</label>
+    <textarea id="replyIn"></textarea>
+    <button id="connect" type="button">Connect</button>
+  </details>
+  <button id="hostBack" type="button" class="sec">Back</button>
 </div></div>
 
 <div id="join" class="screen hidden"><div class="box">
   <h2>Join a friend</h2>
-  <p>Ask your friend to open their world, press <kbd>Esc</kbd>, and click <b>Invite a friend</b>.</p>
-  <label for="inviteIn">Invite code from your friend</label>
-  <textarea id="inviteIn"></textarea>
-  <button id="mkReply" type="button">Make reply code</button>
-  <textarea id="replyOut" readonly aria-label="Your reply code"></textarea>
-  <button id="copyReply" type="button" class="sec">Copy reply code</button>
-  <p id="joinStatus" role="status">Send the reply code back. The game starts as soon as your friend clicks Connect.</p>
+  <p>Ask your friend to open their world, press <kbd>Esc</kbd>, and click <b>Invite a friend</b>. Then type their 6-digit code.</p>
+  <label for="codeIn">Game code</label>
+  <input id="codeIn" class="codein" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="123456">
+  <button id="joinCode" type="button">Join</button>
+  <p id="joinStatus" role="status"></p>
+  <details>
+    <summary>Use long codes instead</summary>
+    <label for="inviteIn">Long invite code from your friend</label>
+    <textarea id="inviteIn"></textarea>
+    <button id="mkReply" type="button">Make reply code</button>
+    <textarea id="replyOut" readonly aria-label="Your reply code"></textarea>
+    <button id="copyReply" type="button" class="sec">Copy reply code</button>
+  </details>
   <button id="joinBack" type="button" class="sec">Back</button>
 </div></div>
 
@@ -257,7 +309,8 @@ item(101, { name: 'Coal' });
 item(102, { name: 'Iron Ingot' });
 item(103, { name: 'Diamond' });
 item(104, { name: 'Apple', food: 4 });
-item(105, { name: 'Porkchop', food: 6 });
+item(105, { name: 'Raw Porkchop', food: 3 });
+item(106, { name: 'Cooked Porkchop', food: 8 });
 var MATS = [['Wooden', '#a77b45'], ['Stone', '#8c8c8c'], ['Iron', '#e2e2e2'], ['Diamond', '#5be0e0']];
 MATS.forEach(function (m, i) {
   item(110 + i, { name: m[0] + ' Pickaxe', stack: 1, pickTier: i + 1, speed: [2, 4, 6, 8][i], dmg: 2 + i, color: m[1], kind: 'pick' });
@@ -267,24 +320,25 @@ MATS.forEach(function (m, i) {
 });
 item(130, { name: 'Mace', stack: 1, dmg: 6, mace: true, kind: 'mace' });
 
-var RECIPES = [
-  { out: 7, n: 4, need: { 5: 1 } },
-  { out: 100, n: 4, need: { 7: 2 } },
-  { out: 15, n: 1, need: { 7: 4 } },
-  { out: 110, n: 1, need: { 7: 3, 100: 2 }, at: 15 },
-  { out: 120, n: 1, need: { 7: 2, 100: 1 }, at: 15 },
-  { out: 111, n: 1, need: { 4: 3, 100: 2 }, at: 15 },
-  { out: 121, n: 1, need: { 4: 2, 100: 1 }, at: 15 },
-  { out: 16, n: 1, need: { 4: 8 }, at: 15 },
-  { out: 102, n: 1, need: { 11: 1, 101: 1 }, at: 16 },
-  { out: 14, n: 4, need: { 8: 4, 101: 1 }, at: 16 },
-  { out: 112, n: 1, need: { 102: 3, 100: 2 }, at: 15 },
-  { out: 122, n: 1, need: { 102: 2, 100: 1 }, at: 15 },
-  { out: 113, n: 1, need: { 103: 3, 100: 2 }, at: 15 },
-  { out: 123, n: 1, need: { 103: 2, 100: 1 }, at: 15 },
-  { out: 130, n: 1, need: { 102: 4, 103: 1, 100: 1 }, at: 15 },
-  { out: 17, n: 1, need: { 103: 3, 102: 4, 4: 2 }, at: 15 }
-];
+// Crafting recipes work like Minecraft: shaped patterns (can be placed anywhere in the grid, or mirrored)
+// and shapeless ones. Anything wider or taller than 2 needs a crafting table's 3x3 grid.
+var KEY = { P: 7, S: 100, C: 4, I: 102, D: 103 };
+var RECIPES = [];
+function shaped(out, n, pat, key) { RECIPES.push({ out: out, n: n, pat: pat, key: key || KEY }); }
+function shapeless(out, n, items) { RECIPES.push({ out: out, n: n, items: items }); }
+shapeless(7, 4, [5]);
+shaped(100, 4, ['P', 'P']);
+shaped(15, 1, ['PP', 'PP']);
+[7, 4, 102, 103].forEach(function (m, i) {
+  shaped(110 + i, 1, ['MMM', ' S ', ' S '], { M: m, S: 100 });
+  shaped(120 + i, 1, ['M', 'M', 'S'], { M: m, S: 100 });
+});
+shaped(16, 1, ['CCC', 'C C', 'CCC']);
+shaped(130, 1, ['IDI', 'III', ' S ']);
+shaped(17, 1, ['DDD', 'ICI', 'ICI']);
+var SMELT = { 11: 102, 8: 14, 4: 3, 105: 106 };       // furnace input -> output
+var FUEL = { 101: 8, 5: 1.5, 7: 1.5, 15: 1.5, 100: 0.5 }; // items smelted per fuel item
+var COOK = 3;                                            // seconds per item
 
 /* ================= Texture atlas (all drawn in code) ================= */
 var atlas = document.createElement('canvas');
@@ -406,6 +460,8 @@ function iconURL(id) {
     disc(8, 9, 5, '#d42a2a'); line(8, 2, 8, 4, BROWN); px(9, 3, '#3a3', 2); px(6, 7, '#f88', 2);
   } else if (id === 105) {
     disc(7, 8, 5, '#f0a0a0'); disc(7, 8, 3, '#e07878'); line(11, 11, 14, 14, '#fff', 2);
+  } else if (id === 106) {
+    disc(7, 8, 5, '#a8643a'); disc(7, 8, 3, '#7d4425'); line(11, 11, 14, 14, '#fff', 2);
   } else if (it.kind === 'pick') {
     line(3, 13, 10, 6, BROWN, 2); line(5, 2, 13, 10, it.color, 2); px(5, 2, '#333'); px(13, 10, '#333');
   } else if (it.kind === 'sword') {
@@ -950,6 +1006,7 @@ function breakTime(id) {
 }
 function breakBlock(x, y, z) {
   var id = getB(x, y, z);
+  if (id === B.FURNACE) emptyFurnace(x + ',' + y + ',' + z);
   setBlock(x, y, z, 0);
   if (creative()) return;
   var it = heldItem(), b = BL[id], drop = b.drop;
@@ -1011,6 +1068,10 @@ function attack(t) {
 
 function useItem() {
   var it = heldItem();
+  if (target && !keys.ShiftLeft && !keys.ShiftRight) {
+    if (target.id === B.TABLE) { openInv('table'); return; }
+    if (target.id === B.FURNACE) { openInv('furnace', target.x + ',' + target.y + ',' + target.z); return; }
+  }
   if (it && it.food && !creative()) {
     if (player.hp >= 20) { msg("You're not hungry — eat when you're hurt."); return; }
     player.hp = Math.min(20, player.hp + it.food);
@@ -1019,9 +1080,7 @@ function useItem() {
     msg('Ate ' + it.name + '.');
     return;
   }
-  if (!target) return;
-  if ((target.id === B.TABLE || target.id === B.FURNACE) && !(it && it.block)) { openInv(); return; }
-  if (!it || !it.block) return;
+  if (!target || !it || !it.block) return;
   var x = target.x + target.face[0], y = target.y + target.face[1], z = target.z + target.face[2];
   if (!canPlaceAt(x, y, z)) return;
   var id = held().id;
@@ -1237,7 +1296,7 @@ function spawnMobs(dt) {
 
 /* ================= Multiplayer (direct peer-to-peer, no server) ================= */
 var ICE = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
-var net = { role: 'solo', peers: [], host: null, myId: 'h', nextId: 1, pending: null, tick: 0 };
+var net = { role: 'solo', peers: [], host: null, myId: 'h', nextId: 1, pending: null, tick: 0, sig: null, code: null, sigPeers: {}, join: null };
 function netSend(peer, m) { if (peer && peer.ch && peer.ch.readyState === 'open') peer.ch.send(JSON.stringify(m)); }
 function sendAll(m, except) { var s = JSON.stringify(m); net.peers.forEach(function (p) { if (p !== except && p.ch && p.ch.readyState === 'open') p.ch.send(s); }); }
 function peerById(id) { return net.peers.filter(function (p) { return p.id === id; })[0]; }
@@ -1276,6 +1335,7 @@ function waitIce(pc) {
 function setupChannel(peer) {
   peer.ch.onopen = function () {
     if (net.role === 'guest') {
+      if (net.join) { clearTimeout(net.join.timer); try { net.join.ws.close(); } catch (err) { /* already closed */ } net.join = null; }
       $('joinStatus').textContent = 'Connected! Loading the world…';
       netSend(peer, { t: 'hello', name: game.name });
     } else {
@@ -1340,6 +1400,113 @@ function guestJoin(code) {
     });
 }
 
+/* ---------- 6-digit codes ----------
+   The code is a room name on ntfy.sh, a free public message relay. Only the connection set-up goes
+   through it (one short message from each side); the game itself goes directly between players. */
+var RELAY = 'https://ntfy.sh/', RELAY_WS = 'wss://ntfy.sh/', ROOM_PREFIX = 'blockcraft-v1-';
+function relayListen(room, onMsg) {
+  return new Promise(function (res, rej) {
+    var ws, done = false;
+    try { ws = new WebSocket(RELAY_WS + ROOM_PREFIX + room + '/ws'); } catch (e) { rej(e); return; }
+    ws.onmessage = function (e) {
+      var m; try { m = JSON.parse(e.data); } catch (err) { return; }
+      if (m.event === 'open' && !done) { done = true; res(ws); }
+      else if (m.event === 'message') { var d; try { d = JSON.parse(m.message); } catch (err) { return; } onMsg(d); }
+    };
+    ws.onerror = function () { if (!done) rej(new Error('net')); };
+    ws.onclose = function () { if (!done) rej(new Error('net')); };
+    setTimeout(function () { if (!done) { rej(new Error('timeout')); try { ws.close(); } catch (e) { /* ignore */ } } }, 8000);
+  });
+}
+function relaySend(room, obj) {
+  return fetch(RELAY + ROOM_PREFIX + room, { method: 'POST', body: JSON.stringify(obj) })
+    .then(function (r) { if (!r.ok) throw new Error('relay ' + r.status); });
+}
+function supportsOnline() { return !!(window.RTCPeerConnection && window.WebSocket && window.fetch); }
+function hostAttach(code, ws) {
+  net.sig = ws; net.code = code;
+  ws.addEventListener('close', function () {
+    if (net.sig !== ws) return;
+    net.sig = null;
+    // keep the same code working if the relay connection drops
+    if (game.running && net.code === code) setTimeout(function () {
+      if (game.running && net.code === code && !net.sig) relayListen(code, hostRelayMsg).then(function (w) { hostAttach(code, w); }, function () { net.code = null; });
+    }, 3000);
+  });
+}
+function hostOnline() {
+  if (net.sig && net.code) return Promise.resolve(net.code);
+  if (!supportsOnline()) return Promise.reject(new Error('unsupported'));
+  var code = String(Math.floor(100000 + Math.random() * 900000));
+  return relayListen(code, hostRelayMsg).then(function (ws) { hostAttach(code, ws); return code; });
+}
+function hostRelayMsg(d) {
+  if (d.t !== 'offer' || !d.from || !d.sdp || net.sigPeers[d.from]) return;
+  var pc = new RTCPeerConnection(ICE);
+  var peer = { pc: pc, id: 'g' + (net.nextId++), name: 'Friend' };
+  net.sigPeers[d.from] = peer;
+  pc.ondatachannel = function (e) { peer.ch = e.channel; setupChannel(peer); };
+  pc.addEventListener('connectionstatechange', function () {
+    if (pc.connectionState !== 'failed') return;
+    var i = net.peers.indexOf(peer);
+    if (i !== -1) net.peers.splice(i, 1);
+    $('hostStatus').textContent = 'A friend tried to join, but the network blocked the connection between your computers.';
+  });
+  net.peers.push(peer);
+  if (net.role === 'solo') net.role = 'host';
+  $('hostStatus').textContent = 'A friend is joining…';
+  var code = net.code;
+  pc.setRemoteDescription({ type: 'offer', sdp: d.sdp })
+    .then(function () { return pc.createAnswer(); })
+    .then(function (a) { return pc.setLocalDescription(a); })
+    .then(function () { return waitIce(pc); })
+    .then(function () { return relaySend(code, { t: 'answer', to: d.from, sdp: pc.localDescription.sdp }); })
+    .catch(function () { $('hostStatus').textContent = "A friend tried to join, but it didn't work. Ask them to try again."; });
+}
+function cancelJoin() {
+  var j = net.join;
+  if (!j) return;
+  clearTimeout(j.timer);
+  try { j.pc.close(); } catch (e) { /* ignore */ }
+  try { if (j.ws) j.ws.close(); } catch (e) { /* ignore */ }
+  net.join = null;
+  if (!game.running) { net.role = 'solo'; net.peers = []; net.host = null; }
+}
+function guestJoinCode(code) {
+  cancelJoin();
+  if (!supportsOnline()) return Promise.reject(new Error('This browser does not support playing together.'));
+  var me = 'g' + Math.random().toString(36).slice(2, 10);
+  var pc = new RTCPeerConnection(ICE);
+  var peer = { pc: pc, id: 'h', ch: pc.createDataChannel('bc') };
+  var j = net.join = { pc: pc, ws: null };
+  net.role = 'guest'; net.host = peer; net.peers = [peer];
+  setupChannel(peer);
+  function fail(text) { if (net.join !== j) return; cancelJoin(); $('joinStatus').textContent = text; }
+  return relayListen(code, function (d) {
+    if (d.t === 'answer' && d.to === me && !j.answered) {
+      j.answered = true;
+      $('joinStatus').textContent = 'Found the game! Connecting…';
+      pc.setRemoteDescription({ type: 'answer', sdp: d.sdp }).catch(function () {});
+    }
+  }).catch(function () {
+    cancelJoin();
+    throw new Error("Couldn't reach the matchmaking server — your network may block it. Use long codes instead (below).");
+  }).then(function (ws) {
+    j.ws = ws;
+    pc.addEventListener('connectionstatechange', function () {
+      if (pc.connectionState === 'failed') fail("Found your friend's game, but the network blocked the connection between your computers.");
+    });
+    j.timer = setTimeout(function () {
+      fail(j.answered ? "Found your friend's game, but couldn't connect. The network may block it." :
+        'No game found with code ' + code + '. Check the digits, and make sure your friend clicked “Invite a friend”.');
+    }, 25000);
+    return pc.createOffer()
+      .then(function (o) { return pc.setLocalDescription(o); })
+      .then(function () { return waitIce(pc); })
+      .then(function () { return relaySend(code, { t: 'offer', from: me, sdp: pc.localDescription.sdp }); });
+  });
+}
+
 function handleMsg(peer, m) {
   if (net.role !== 'guest') {
     // ---- host side ----
@@ -1375,7 +1542,7 @@ function handleMsg(peer, m) {
   }
   // ---- guest side ----
   if (m.t === 'init') {
-    game.seed = m.seed; game.mode = m.mode; game.time = m.time; game.pvp = m.pvp; net.myId = m.you;
+    game.seed = m.seed; game.mode = m.mode; game.time = m.time; game.pvp = m.pvp; net.myId = m.you; furnaces = {};
     generate(m.seed);
     spawn = m.spawn;
   } else if (m.t === 'ed') {
@@ -1454,7 +1621,7 @@ var SAVE = 'blockcraft-save';
 function saveGame() {
   if (net.role === 'guest' || !game.running) return;
   var ok = store(SAVE, { v: 1, seed: game.seed, mode: game.mode, time: game.time, edits: Array.from(edits.entries()), inv: inv, sel: sel,
-    pos: player.pos, hp: player.hp, dragonDead: game.dragonDead, playTime: game.playTime, pvp: game.pvp });
+    furnaces: furnaces, pos: player.pos, hp: player.hp, dragonDead: game.dragonDead, playTime: game.playTime, pvp: game.pvp });
   if (!ok) msg("Couldn't save — this browser is blocking storage.");
 }
 
@@ -1474,6 +1641,7 @@ function update(dt) {
   game.playTime += dt;
   if (!player.dead) { updatePlayer(dt); updateInteraction(dt); }
   if (net.role !== 'guest') { updateMobs(dt); spawnMobs(dt); }
+  tickFurnaces(dt);
   smoothRemote(dt);
   netTick(dt);
   saveT -= dt;
@@ -1583,6 +1751,7 @@ function frame(t) {
   if (!game.running) return;
   var frozen = net.role === 'solo' && (anyScreen() || !locked);
   if (!frozen) update(dt);
+  else if (!$('inv').classList.contains('hidden')) tickFurnaces(dt); // furnaces keep cooking while you watch
   render();
 }
 
@@ -1593,6 +1762,7 @@ function resetPlayer(pos) {
 }
 function startGame(fresh, saved) {
   mobs = []; others = others || {};
+  craftGrid = new Array(9).fill(null); cursor = null;
   chunks.forEach(function (c) { c.dirty = true; });
   if (saved) {
     resetPlayer(saved.pos || spawn);
@@ -1635,7 +1805,7 @@ function newWorld() {
   game.time = 0.05; game.dragonDead = false; game.playTime = 0;
   game.name = $('name').value.trim() || game.name;
   store('blockcraft-name', game.name);
-  net.role = 'solo'; net.peers = []; others = {};
+  net.role = 'solo'; net.peers = []; others = {}; furnaces = {};
   generate(game.seed);
   startGame(true);
   msg('World seed: ' + game.seed + '. Punch a tree to get started!');
@@ -1647,6 +1817,7 @@ function continueWorld() {
   game.pvp = s.pvp !== false;
   game.name = $('name').value.trim() || game.name;
   net.role = 'solo'; net.peers = []; others = {};
+  furnaces = s.furnaces || {};
   generate(game.seed);
   (s.edits || []).forEach(function (e) { world[e[0]] = e[1]; edits.set(e[0], e[1]); });
   startGame(false, s);
@@ -1659,73 +1830,346 @@ function showWin(by) {
   openScreen('win');
 }
 
-/* ---------- inventory screen ---------- */
-var invPick = -1;
-function openInv() { invPick = -1; renderInv(); openScreen('inv'); }
+/* ---------- inventory, crafting grid, furnace and recipe book ---------- */
+var cursor = null, craftGrid = new Array(9).fill(null), gridSize = 2, station = 'inv', furnaceKey = null, furnaces = {};
+var bookOpen = load('blockcraft-book', true) !== false, bookSel = null, furnaceSig = '';
+var cursorEl = $('cursor');
+
+function getSlot(a, i) {
+  if (a === 'inv') return inv[i];
+  if (a === 'grid') return craftGrid[i];
+  if (a === 'fur') return furnaces[furnaceKey].slots[i];
+  return null;
+}
+function setSlot(a, i, v) {
+  if (v && v.n <= 0) v = null;
+  if (a === 'inv') inv[i] = v;
+  else if (a === 'grid') craftGrid[i] = v;
+  else if (a === 'fur') furnaces[furnaceKey].slots[i] = v;
+}
+function activeCells() { return gridSize === 3 ? [0, 1, 2, 3, 4, 5, 6, 7, 8] : [0, 1, 3, 4]; }
+function recipeDims(r) {
+  if (r.items) return { w: 1, h: 1 };
+  return { w: Math.max.apply(null, r.pat.map(function (row) { return row.length; })), h: r.pat.length };
+}
+function needsTable(r) { var d = recipeDims(r); return r.items ? r.items.length > 4 : d.w > 2 || d.h > 2; }
+function recipeNeeds(r) {
+  var need = {};
+  function add(id) { need[id] = (need[id] || 0) + 1; }
+  if (r.items) r.items.forEach(add);
+  else r.pat.forEach(function (row) { row.split('').forEach(function (ch) { if (ch !== ' ') add(r.key[ch]); }); });
+  return need;
+}
+function matchGrid() {
+  var minR = 9, maxR = -1, minC = 9, maxC = -1, ids = [];
+  activeCells().forEach(function (i) {
+    var s = craftGrid[i]; if (!s) return;
+    var r = Math.floor(i / 3), c = i % 3;
+    ids.push(s.id);
+    minR = Math.min(minR, r); maxR = Math.max(maxR, r); minC = Math.min(minC, c); maxC = Math.max(maxC, c);
+  });
+  if (maxR < 0) return null;
+  var h = maxR - minR + 1, w = maxC - minC + 1;
+  var sorted = ids.slice().sort().join();
+  for (var k = 0; k < RECIPES.length; k++) {
+    var rc = RECIPES[k];
+    if (rc.items) { if (rc.items.slice().sort().join() === sorted) return rc; continue; }
+    var d = recipeDims(rc);
+    if (d.w !== w || d.h !== h) continue;
+    for (var mirror = 0; mirror < 2; mirror++) {
+      var ok = true;
+      for (var rr = 0; rr < h && ok; rr++) for (var cc = 0; cc < w && ok; cc++) {
+        var ch = rc.pat[rr][mirror ? w - 1 - cc : cc] || ' ';
+        var want = ch === ' ' ? 0 : rc.key[ch];
+        var got = craftGrid[(minR + rr) * 3 + minC + cc];
+        if ((got ? got.id : 0) !== want) ok = false;
+      }
+      if (ok) return rc;
+    }
+  }
+  return null;
+}
+function consumeGrid() {
+  activeCells().forEach(function (i) { var s = craftGrid[i]; if (s) { s.n--; if (!s.n) craftGrid[i] = null; } });
+}
+function roomFor(id, n) {
+  var max = IT[id].stack, room = 0;
+  inv.forEach(function (s) { if (!s) room += max; else if (s.id === id) room += max - s.n; });
+  return room >= n;
+}
+function takeOutput(shift) {
+  var r = matchGrid();
+  if (!r) return;
+  if (shift) {
+    for (var guard = 0; guard < 64 && roomFor(r.out, r.n); guard++) {
+      addItem(r.out, r.n); consumeGrid();
+      if (matchGrid() !== r) break;
+    }
+    return;
+  }
+  if (cursor && (cursor.id !== r.out || cursor.n + r.n > IT[r.out].stack)) return;
+  if (cursor) cursor.n += r.n; else cursor = { id: r.out, n: r.n };
+  consumeGrid();
+}
+function range(a, from, to) { var o = []; for (var i = from; i < to; i++) o.push([a, i]); return o; }
+function moveInto(stack, refs) {
+  var max = IT[stack.id].stack;
+  refs.forEach(function (r) {
+    var s = getSlot(r[0], r[1]);
+    if (stack.n && s && s.id === stack.id && s.n < max) { var k = Math.min(stack.n, max - s.n); s.n += k; stack.n -= k; }
+  });
+  refs.forEach(function (r) {
+    if (stack.n && !getSlot(r[0], r[1])) { var k = Math.min(stack.n, max); setSlot(r[0], r[1], { id: stack.id, n: k }); stack.n -= k; }
+  });
+  return stack.n;
+}
+// Shift-click: send a stack to the other part of the inventory (or into the furnace).
+function quickMove(a, i) {
+  var s = getSlot(a, i);
+  if (!s) return;
+  var stack = { id: s.id, n: s.n }, targets;
+  if (a === 'inv') {
+    if (station === 'furnace' && SMELT[s.id]) targets = [['fur', 0]];
+    else if (station === 'furnace' && FUEL[s.id]) targets = [['fur', 1]];
+    else targets = i < 9 ? range('inv', 9, 36) : range('inv', 0, 9);
+  } else targets = range('inv', 0, 36);
+  var left = moveInto(stack, targets);
+  setSlot(a, i, left ? { id: s.id, n: left } : null);
+}
+// Minecraft-style clicks: left picks up / places a whole stack, right takes half / places one.
+function clickSlot(a, i, right, shift) {
+  if (a === 'out') { takeOutput(shift); return; }
+  var s = getSlot(a, i);
+  if (a === 'fur' && i === 2) {
+    if (!s) return;
+    if (shift) quickMove(a, i);
+    else if (!cursor) { cursor = s; setSlot(a, i, null); }
+    else if (cursor.id === s.id) { var k = Math.min(s.n, IT[s.id].stack - cursor.n); cursor.n += k; s.n -= k; setSlot(a, i, s); }
+    return;
+  }
+  if (shift) { quickMove(a, i); return; }
+  if (!cursor) {
+    if (!s) return;
+    if (right) { var half = Math.ceil(s.n / 2); cursor = { id: s.id, n: half }; s.n -= half; setSlot(a, i, s); }
+    else { cursor = s; setSlot(a, i, null); }
+    return;
+  }
+  if (a === 'fur' && i === 1 && !FUEL[cursor.id]) { msg(IT[cursor.id].name + " can't be used as fuel. Try coal, logs or planks."); return; }
+  var max = IT[cursor.id].stack;
+  if (!s) {
+    if (right) { setSlot(a, i, { id: cursor.id, n: 1 }); cursor.n--; }
+    else { setSlot(a, i, cursor); cursor = null; }
+  } else if (s.id === cursor.id) {
+    var m = Math.min(right ? 1 : cursor.n, max - s.n); s.n += m; cursor.n -= m;
+  } else if (!right) {
+    setSlot(a, i, cursor); cursor = s;
+  }
+  if (cursor && cursor.n <= 0) cursor = null;
+}
+function returnToInv(stack) {
+  if (!stack) return;
+  var left = addItem(stack.id, stack.n);
+  if (left) msg('No room for ' + left + ' ' + IT[stack.id].name + ' — it was lost.');
+}
+function haveCount(id) {
+  return countItem(id) + craftGrid.reduce(function (t, s) { return t + (s && s.id === id ? s.n : 0); }, 0);
+}
+function canMake(r, times) {
+  var need = recipeNeeds(r);
+  return Object.keys(need).every(function (id) { return haveCount(+id) >= need[id] * (times || 1); });
+}
+// Recipe book: put the ingredients into the grid for you (shift = as many as you can).
+function fillGrid(r, shift) {
+  activeCells().forEach(function (i) { if (craftGrid[i]) { returnToInv(craftGrid[i]); craftGrid[i] = null; } });
+  var need = recipeNeeds(r), times = 1;
+  if (shift) {
+    times = 64;
+    Object.keys(need).forEach(function (id) { times = Math.min(times, Math.floor(countItem(+id) / need[id]), IT[id].stack); });
+    times = Math.max(1, times);
+  }
+  var place = function (cell, id) { removeItem(id, times); craftGrid[cell] = { id: id, n: times }; };
+  if (r.items) { var cells = activeCells(); r.items.forEach(function (id, j) { place(cells[j], id); }); return; }
+  r.pat.forEach(function (row, rr) {
+    row.split('').forEach(function (ch, cc) { if (ch !== ' ') place(rr * 3 + cc, r.key[ch]); });
+  });
+}
+function closeInv() {
+  craftGrid.forEach(function (s, i) { if (s) { returnToInv(s); craftGrid[i] = null; } });
+  returnToInv(cursor);
+  cursor = null;
+  renderCursor();
+  renderHotbar();
+  closeScreen('inv');
+}
+function openInv(kind, key) {
+  station = kind || 'inv';
+  gridSize = station === 'table' ? 3 : 2;
+  furnaceKey = key || null;
+  if (station === 'furnace' && !furnaces[key]) furnaces[key] = { slots: [null, null, null], burn: 0, burnMax: 0, cook: 0 };
+  bookSel = null;
+  renderInv();
+  openScreen('inv');
+}
+function emptyFurnace(key) {
+  var f = furnaces[key];
+  if (!f) return;
+  f.slots.forEach(returnToInv);
+  delete furnaces[key];
+  if (station === 'furnace' && furnaceKey === key && !$('inv').classList.contains('hidden')) closeInv();
+}
+function tickFurnaces(dt) {
+  Object.keys(furnaces).forEach(function (key) {
+    var f = furnaces[key], inp = f.slots[0], res = inp && SMELT[inp.id], out = f.slots[2];
+    var canCook = !!res && (!out || (out.id === res && out.n < IT[res].stack));
+    if (f.burn <= 0 && canCook && f.slots[1] && FUEL[f.slots[1].id]) {
+      f.burn = f.burnMax = FUEL[f.slots[1].id] * COOK;
+      f.slots[1].n--; if (!f.slots[1].n) f.slots[1] = null;
+    }
+    if (f.burn > 0) {
+      f.burn -= dt;
+      if (canCook) {
+        f.cook += dt;
+        if (f.cook >= COOK) {
+          f.cook = 0;
+          inp.n--; if (!inp.n) f.slots[0] = null;
+          if (out) out.n++; else f.slots[2] = { id: res, n: 1 };
+        }
+      } else f.cook = 0;
+    } else f.cook = Math.max(0, f.cook - dt * 2);
+  });
+  if (station === 'furnace' && furnaces[furnaceKey] && !$('inv').classList.contains('hidden')) {
+    var f = furnaces[furnaceKey];
+    var sig = f.slots.map(function (s) { return s ? s.id + 'x' + s.n : '-'; }).join();
+    if (sig !== furnaceSig) renderInv();
+    var fl = document.querySelector('#craftArea .flame i'), pr = document.querySelector('#craftArea .prog i');
+    if (fl) fl.style.height = (f.burnMax ? clamp(f.burn / f.burnMax, 0, 1) * 100 : 0) + '%';
+    if (pr) pr.style.width = clamp(f.cook / COOK, 0, 1) * 100 + '%';
+  }
+}
+
+function renderCursor() {
+  cursorEl.innerHTML = cursor ? slotHTML(cursor) : '';
+  cursorEl.classList.toggle('hidden', !cursor);
+}
+function slotBtn(a, i, s, extra) {
+  var label = s ? IT[s.id].name + (s.n > 1 ? ', ' + s.n : '') : 'Empty slot';
+  return '<button type="button" class="slot' + (extra || '') + '" data-a="' + a + '" data-i="' + i + '" title="' + (s ? IT[s.id].name : '') +
+    '" aria-label="' + label + '">' + slotHTML(s) + '</button>';
+}
 function renderInv() {
+  $('invTitle').textContent = station === 'table' ? 'Crafting Table' : station === 'furnace' ? 'Furnace' : 'Inventory';
   var pal = $('palette');
+  pal.classList.toggle('hidden', !creative());
   if (creative()) {
-    pal.classList.remove('hidden');
     pal.innerHTML = ITEM_ORDER.map(function (id) {
-      return '<button type="button" class="slot" data-give="' + id + '" title="' + IT[id].name + '" aria-label="' + IT[id].name + '"><img alt="" src="' + iconURL(id) + '"></button>';
+      return '<button type="button" class="slot" data-give="' + id + '" title="' + IT[id].name + '" aria-label="Take ' + IT[id].name + '"><img alt="" src="' + iconURL(id) + '"></button>';
     }).join('');
-    $('invhint').textContent = 'Creative: click any item above to put it in your selected hotbar slot. Click two of your slots to swap them.';
+  }
+  var html;
+  if (station === 'furnace') {
+    var f = furnaces[furnaceKey];
+    furnaceSig = f.slots.map(function (s) { return s ? s.id + 'x' + s.n : '-'; }).join();
+    html = '<div class="fcol">' + slotBtn('fur', 0, f.slots[0]) + '<div class="flame" title="Fuel"><i style="height:' +
+      (f.burnMax ? clamp(f.burn / f.burnMax, 0, 1) * 100 : 0) + '%"></i></div>' + slotBtn('fur', 1, f.slots[1]) + '</div>' +
+      '<div class="prog" title="Cooking"><i style="width:' + clamp(f.cook / COOK, 0, 1) * 100 + '%"></i></div>' + slotBtn('fur', 2, f.slots[2], ' big');
   } else {
-    pal.classList.add('hidden');
-    $('invhint').textContent = 'Click two slots to swap them. The top row is your hotbar.';
+    var r = matchGrid();
+    html = '<div class="cgrid s' + gridSize + '">' + activeCells().map(function (i) { return slotBtn('grid', i, craftGrid[i]); }).join('') +
+      '</div><span class="arr" aria-hidden="true">→</span>' + slotBtn('out', 0, r ? { id: r.out, n: r.n } : null, ' big');
   }
+  $('craftArea').innerHTML = html;
   var g = '';
-  for (var i = 0; i < 36; i++) {
-    var s = inv[i];
-    g += '<button type="button" class="slot' + (i === invPick ? ' pick' : i === sel ? ' sel' : '') + '" data-slot="' + i + '" aria-label="' +
-      (s ? IT[s.id].name + ' ×' + s.n : 'Empty slot') + '" title="' + (s ? IT[s.id].name : '') + '">' + slotHTML(s) + '</button>';
-  }
+  for (var i = 9; i < 36; i++) g += slotBtn('inv', i, inv[i]);
   $('invgrid').innerHTML = g;
-  var table = nearBlock(B.TABLE), furnace = nearBlock(B.FURNACE);
-  $('stations').textContent = 'Nearby: ' + (table ? 'Crafting Table ✓' : 'no Crafting Table') + ' · ' + (furnace ? 'Furnace ✓' : 'no Furnace') +
-    '. Stand within 4 blocks of one to use its recipes.';
-  if (creative()) { $('recipes').innerHTML = '<p>In Creative you can take any item from the palette.</p>'; return; }
-  $('recipes').innerHTML = RECIPES.map(function (r, ri) {
-    var have = Object.keys(r.need).every(function (id) { return countItem(Number(id)) >= r.need[id]; });
-    var station = !r.at || (r.at === B.TABLE ? table : furnace);
-    var needs = Object.keys(r.need).map(function (id) { return r.need[id] + ' ' + IT[id].name; }).join(', ');
-    if (r.at) needs += ' · at ' + IT[r.at].name;
-    return '<div class="recipe"><img alt="" src="' + iconURL(r.out) + '"><div class="need"><strong>' + IT[r.out].name + (r.n > 1 ? ' ×' + r.n : '') + '</strong>' + needs +
-      '</div><button type="button" data-craft="' + ri + '"' + (have && station ? '' : ' disabled') + '>Craft</button></div>';
+  var h = '';
+  for (var j = 0; j < 9; j++) h += slotBtn('inv', j, inv[j], j === sel ? ' sel' : '');
+  $('hotgrid').innerHTML = h;
+  $('invhint').textContent = station === 'furnace'
+    ? 'Top slot: something to smelt. Bottom slot: fuel (coal, logs, planks). Shift-click items to send them in.'
+    : 'Left-click: pick up or place a stack. Right-click: take half or place one. Shift-click: move a stack quickly.' +
+      (gridSize === 2 ? ' Use a crafting table for the bigger 3×3 grid.' : '');
+  $('bookToggle').textContent = bookOpen ? 'Hide recipe book' : 'Show recipe book';
+  renderBook();
+  renderCursor();
+}
+function renderBook() {
+  $('book').classList.toggle('hidden', !bookOpen);
+  if (!bookOpen) return;
+  var only = $('craftableOnly').checked, html = '';
+  RECIPES.forEach(function (r, k) {
+    var ok = canMake(r), big = needsTable(r) && gridSize < 3;
+    if (only && (!ok || big)) return;
+    html += '<button type="button" class="slot' + (!ok ? ' dim' : '') + (big ? ' red' : '') + (bookSel === k ? ' pick' : '') + '" data-book="' + k +
+      '" title="' + IT[r.out].name + '" aria-label="Recipe: ' + IT[r.out].name + (ok ? '' : ', missing items') + (big ? ', needs a crafting table' : '') +
+      '"><img alt="" src="' + iconURL(r.out) + '">' + (r.n > 1 ? '<b>' + r.n + '</b>' : '') + '</button>';
+  });
+  $('bookList').innerHTML = html || '<p class="small">Nothing to craft yet. Untick “Craftable only” to see every recipe.</p>';
+  var pv = '';
+  if (bookSel !== null) {
+    var r = RECIPES[bookSel], cells = [];
+    for (var c = 0; c < 9; c++) cells.push(0);
+    if (r.items) r.items.forEach(function (id, j) { cells[j] = id; });
+    else r.pat.forEach(function (row, rr) { row.split('').forEach(function (ch, cc) { if (ch !== ' ') cells[rr * 3 + cc] = r.key[ch]; }); });
+    var need = recipeNeeds(r);
+    var missing = Object.keys(need).filter(function (id) { return haveCount(+id) < need[id]; })
+      .map(function (id) { return (need[id] - haveCount(+id)) + ' ' + IT[id].name; });
+    pv = '<strong>' + IT[r.out].name + (r.n > 1 ? ' ×' + r.n : '') + '</strong>' + (r.items ? ' (any shape)' : '') +
+      '<div class="pg">' + cells.map(function (id) { return '<span>' + (id ? '<img alt="' + IT[id].name + '" title="' + IT[id].name + '" src="' + iconURL(id) + '">' : '') + '</span>'; }).join('') + '</div>' +
+      (needsTable(r) && gridSize < 3 ? '<div>Needs a crafting table (3×3 grid).</div>' : '') +
+      (missing.length ? '<div>Missing: ' + missing.join(', ') + '</div>' : '<div>Click again to fill the grid. Shift-click fills as many as you can.</div>');
+  } else {
+    pv = 'Pick a recipe to see its pattern. Faded ones need more items; red ones need a crafting table.';
+  }
+  $('bookPreview').innerHTML = pv;
+  $('smeltList').innerHTML = Object.keys(SMELT).map(function (id) {
+    return '<div class="smelt"><img alt="" src="' + iconURL(+id) + '">→<img alt="" src="' + iconURL(SMELT[id]) + '"><span>' + IT[id].name + ' → ' + IT[SMELT[id]].name + '</span></div>';
   }).join('');
+}
+function handleInvButton(b, right, shift) {
+  if (b.dataset.a) {
+    clickSlot(b.dataset.a, Number(b.dataset.i), right, shift);
+  } else if (b.dataset.give) {
+    var id = Number(b.dataset.give);
+    cursor = cursor ? null : { id: id, n: IT[id].stack }; // clicking the palette while holding something deletes it
+  } else if (b.dataset.book) {
+    var k = Number(b.dataset.book), r = RECIPES[k];
+    if (bookSel === k || shift) {
+      if (station === 'furnace') msg('Open a crafting table or your inventory to craft.');
+      else if (needsTable(r) && gridSize < 3) msg('That recipe needs a crafting table.');
+      else if (canMake(r)) fillGrid(r, shift);
+    }
+    bookSel = k;
+  } else if (b.id === 'bookToggle') {
+    bookOpen = !bookOpen;
+    store('blockcraft-book', bookOpen);
+  } else if (b.id === 'invClose') {
+    closeInv();
+    return;
+  } else return;
+  renderHotbar();
+  renderInv();
 }
 $('inv').addEventListener('click', function (e) {
   var b = e.target.closest('button');
-  if (!b) return;
-  if (b.dataset.give) {
-    var id = Number(b.dataset.give);
-    inv[sel] = { id: id, n: IT[id].stack };
-    renderHotbar(); renderInv();
-  } else if (b.dataset.slot) {
-    var i = Number(b.dataset.slot);
-    if (invPick < 0) { invPick = i; }
-    else {
-      var a = inv[invPick], c = inv[i];
-      if (a && c && a.id === c.id && invPick !== i && c.n < IT[c.id].stack) {
-        var k = Math.min(a.n, IT[c.id].stack - c.n); c.n += k; a.n -= k; if (!a.n) inv[invPick] = null;
-      } else { inv[invPick] = c; inv[i] = a; }
-      invPick = -1;
-      renderHotbar();
-    }
-    renderInv();
-  } else if (b.dataset.craft) {
-    var r = RECIPES[Number(b.dataset.craft)];
-    Object.keys(r.need).forEach(function (id) { removeItem(Number(id), r.need[id]); });
-    var left = addItem(r.out, r.n);
-    if (left) msg('Your inventory is full.');
-    renderInv();
-  }
+  if (b) handleInvButton(b, false, e.shiftKey);
 });
-$('invClose').addEventListener('click', function () { closeScreen('inv'); });
+$('inv').addEventListener('contextmenu', function (e) {
+  var b = e.target.closest('button[data-a]');
+  if (!b) return;
+  e.preventDefault();
+  handleInvButton(b, true, e.shiftKey);
+});
+$('craftableOnly').addEventListener('change', renderInv);
+document.addEventListener('mousemove', function (e) {
+  cursorEl.style.left = e.clientX + 'px';
+  cursorEl.style.top = e.clientY + 'px';
+});
 
 /* ---------- input ---------- */
 document.addEventListener('pointerlockchange', function () {
   locked = document.pointerLockElement === canvas;
+  // A lock request can finish after a menu has opened; menus need the mouse back.
+  if (locked && anyScreen()) { unlock(); return; }
   if (!locked) { keys = {}; mouse.left = mouse.right = false; }
   if (!locked && game.running && !anyScreen() && $('chat').classList.contains('hidden')) {
     $('pauseInfo').textContent = net.role === 'solo' ? 'The world is paused.' :
@@ -1770,7 +2214,7 @@ document.addEventListener('keydown', function (e) {
     } else if (e.key === 'Escape') { chatEl.value = ''; chatEl.classList.add('hidden'); chatEl.blur(); }
     return;
   }
-  if (e.code === 'KeyE' && !$('inv').classList.contains('hidden')) { e.preventDefault(); closeScreen('inv'); return; }
+  if ((e.code === 'KeyE' || e.key === 'Escape') && !$('inv').classList.contains('hidden')) { e.preventDefault(); closeInv(); return; }
   if (!$('pause').classList.contains('hidden') && e.key === 'Escape') { hide('pause'); lock(); return; }
   if (anyScreen()) return;
   if (['Space', 'ArrowUp', 'ArrowDown', 'F3', 'Tab'].indexOf(e.code) !== -1) e.preventDefault();
@@ -1803,6 +2247,7 @@ $('quit').addEventListener('click', function () {
   if (net.role === 'guest' && net.host) net.host.pc.close();
   net.peers.forEach(function (p) { p.pc.close(); });
   net.peers = []; net.role = 'solo'; others = {};
+  if (net.sig) { net.sig.close(); net.sig = null; net.code = null; }
   showTitle();
 });
 $('pvp').addEventListener('change', function () {
@@ -1814,12 +2259,22 @@ $('winOk').addEventListener('click', function () { closeScreen('win'); });
 
 $('mpBtn').addEventListener('click', function () {
   hide('pause'); show('host');
-  $('inviteOut').value = ''; $('replyIn').value = ''; $('hostStatus').textContent = '';
+  $('inviteOut').value = ''; $('replyIn').value = '';
+  if (net.sig && net.code) { $('hostCode').textContent = net.code; $('hostStatus').textContent = 'Waiting for friends to join…'; return; }
+  $('hostCode').textContent = '······';
+  $('hostStatus').textContent = 'Getting a code…';
+  hostOnline().then(function (code) {
+    $('hostCode').textContent = code;
+    $('hostStatus').textContent = 'Waiting for friends to join… You can go back to playing; the code keeps working.';
+  }).catch(function () {
+    $('hostCode').textContent = '—';
+    $('hostStatus').textContent = "Couldn't reach the matchmaking server (your network may block it). Use long codes instead.";
+  });
 });
 $('hostBack').addEventListener('click', function () { hide('host'); show('pause'); });
 $('mkInvite').addEventListener('click', function () {
-  $('hostStatus').textContent = 'Making your code…';
-  hostInvite().then(function (code) { $('inviteOut').value = code; $('hostStatus').textContent = 'Send this code to your friend.'; })
+  $('hostStatus').textContent = 'Making your long code…';
+  hostInvite().then(function (code) { $('inviteOut').value = code; $('hostStatus').textContent = 'Send this long code to your friend.'; })
     .catch(function (err) { $('hostStatus').textContent = err.message; });
 });
 $('connect').addEventListener('click', function () {
@@ -1838,10 +2293,20 @@ $('joinBtn').addEventListener('click', function () {
   game.name = $('name').value.trim() || game.name;
   store('blockcraft-name', game.name);
   hide('title'); show('join');
-  $('inviteIn').value = ''; $('replyOut').value = '';
+  $('codeIn').value = ''; $('inviteIn').value = ''; $('replyOut').value = ''; $('joinStatus').textContent = '';
+  $('codeIn').focus();
 });
-$('joinBack').addEventListener('click', function () { hide('join'); show('title'); });
+$('joinBack').addEventListener('click', function () { cancelJoin(); hide('join'); show('title'); });
+function joinWithCode() {
+  var code = $('codeIn').value.replace(/\D/g, '');
+  if (code.length !== 6) { $('joinStatus').textContent = 'Type all 6 digits of the code.'; return; }
+  $('joinStatus').textContent = 'Looking for game ' + code + '…';
+  guestJoinCode(code).catch(function (err) { $('joinStatus').textContent = err.message; });
+}
+$('joinCode').addEventListener('click', joinWithCode);
+$('codeIn').addEventListener('keydown', function (e) { if (e.key === 'Enter') joinWithCode(); });
 $('mkReply').addEventListener('click', function () {
+  cancelJoin();
   $('joinStatus').textContent = 'Making your reply code…';
   guestJoin($('inviteIn').value).then(function (code) {
     $('replyOut').value = code;
