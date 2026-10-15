@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en" data-theme="auto">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Quick, quiet browser games. No downloads, no sign-in, no ads.">
+  <title>Free Games</title>
+  <link rel="stylesheet" href="assets/style.css">
+  <script src="assets/settings.js"></script>
+</head>
+<body>
+  <a class="skip" href="#games">Skip to games</a>
+  <div class="wrap">
+    <header class="site-header">
+      <h1>Free Games</h1>
+      <p class="tagline">Quick, quiet games that run right in your browser. No downloads, no sign-in, no ads, no sound.</p>
+    </header>
+
+    <main>
+      <section class="panel settings" aria-labelledby="settings-h">
+        <h2 id="settings-h">Display settings</h2>
+        <div class="settings-row">
+          <label>Theme
+            <select id="set-theme">
+              <option value="auto">Match computer</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+              <option value="contrast">High contrast</option>
+            </select>
+          </label>
+          <label>Text size
+            <select id="set-scale">
+              <option value="0.9">Small</option>
+              <option value="1">Normal</option>
+              <option value="1.2">Large</option>
+              <option value="1.4">Extra large</option>
+            </select>
+          </label>
+          <label><input type="checkbox" id="set-motion"> Reduce motion</label>
+        </div>
+      </section>
+
+      <div class="search">
+        <label for="search">Find a game</label>
+        <input id="search" type="search" placeholder="Type a name, like snake" autocomplete="off">
+      </div>
+
+      <ul id="games" class="game-grid" aria-label="Games">
+        <li data-name="snake arcade classic">
+          <a class="card" href="games/snake.html">
+            <svg viewBox="0 0 44 44" aria-hidden="true"><rect width="44" height="44" rx="10" fill="#2f9e5b"/><path d="M10 30h14V18h10" stroke="#fff" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="34" cy="30" r="3.5" fill="#ffd166"/></svg>
+            <h3>Snake</h3>
+            <p>Eat, grow, and don't bite your own tail.</p>
+            <p class="meta">Keyboard or touch · Best: <b data-best="snake">–</b></p>
+          </a>
+        </li>
+        <li data-name="2048 puzzle numbers math">
+          <a class="card" href="games/2048.html">
+            <svg viewBox="0 0 44 44" aria-hidden="true"><rect width="44" height="44" rx="10" fill="#e5a72a"/><text x="22" y="28" text-anchor="middle" font-size="13" font-weight="800" font-family="Arial, sans-serif" fill="#fff">2048</text></svg>
+            <h3>2048</h3>
+            <p>Slide and merge tiles to reach 2048.</p>
+            <p class="meta">Keyboard or touch · Best: <b data-best="2048">–</b></p>
+          </a>
+        </li>
+        <li data-name="minesweeper mines logic puzzle">
+          <a class="card" href="games/minesweeper.html">
+            <svg viewBox="0 0 44 44" aria-hidden="true"><rect width="44" height="44" rx="10" fill="#3d5a99"/><circle cx="22" cy="23" r="8" fill="#fff"/><path d="M22 9v6M22 31v6M8 23h6M30 23h6M12 13l4 4M28 29l4 4M32 13l-4 4M16 29l-4 4" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/></svg>
+            <h3>Minesweeper</h3>
+            <p>Use number clues to clear the field.</p>
+            <p class="meta">Mouse or keyboard · Best (easy): <b data-best="minesweeper-easy" data-unit="s">–</b></p>
+          </a>
+        </li>
+        <li data-name="memory match cards pairs">
+          <a class="card" href="games/memory.html">
+            <svg viewBox="0 0 44 44" aria-hidden="true"><rect width="44" height="44" rx="10" fill="#8a4fd1"/><rect x="8" y="10" width="12" height="16" rx="2" fill="#fff"/><rect x="24" y="18" width="12" height="16" rx="2" fill="#fff"/><text x="30" y="30" text-anchor="middle" font-size="10" fill="#8a4fd1">★</text></svg>
+            <h3>Memory Match</h3>
+            <p>Flip cards and find all eight pairs.</p>
+            <p class="meta">Mouse or keyboard · Fewest moves: <b data-best="memory">–</b></p>
+          </a>
+        </li>
+        <li data-name="tic tac toe noughts crosses two player">
+          <a class="card" href="games/tictactoe.html">
+            <svg viewBox="0 0 44 44" aria-hidden="true"><rect width="44" height="44" rx="10" fill="#d1495b"/><path d="M17 8v28M27 8v28M8 17h28M8 27h28" stroke="#fff" stroke-width="2.5"/><path d="M9.5 9.5l5 5M14.5 9.5l-5 5" stroke="#fff" stroke-width="2.5"/><circle cx="32" cy="32" r="3" stroke="#fff" stroke-width="2.5" fill="none"/></svg>
+            <h3>Tic-Tac-Toe</h3>
+            <p>Play the computer or a friend next to you.</p>
+            <p class="meta">Mouse or keyboard · Wins: <b data-best="tictactoe-wins">–</b></p>
+          </a>
+        </li>
+        <li data-name="breakout bricks paddle arcade">
+          <a class="card" href="games/breakout.html">
+            <svg viewBox="0 0 44 44" aria-hidden="true"><rect width="44" height="44" rx="10" fill="#1f7a8c"/><rect x="7" y="9" width="9" height="5" fill="#ffd166"/><rect x="18" y="9" width="9" height="5" fill="#ef476f"/><rect x="29" y="9" width="9" height="5" fill="#06d6a0"/><rect x="13" y="16" width="9" height="5" fill="#fff"/><circle cx="25" cy="28" r="2.5" fill="#fff"/><rect x="16" y="34" width="14" height="3" rx="1.5" fill="#fff"/></svg>
+            <h3>Breakout</h3>
+            <p>Bounce the ball and smash every brick.</p>
+            <p class="meta">Mouse or keyboard · Best: <b data-best="breakout">–</b></p>
+          </a>
+        </li>
+      </ul>
+      <p id="no-results" class="empty" hidden>No games match that search.</p>
+    </main>
+
+    <footer class="site-footer">
+      <p>Everything runs from this folder — no outside servers, so it also works offline: download the project as a ZIP, unzip it, and open <code>index.html</code>. Games pause on their own when you switch tabs. Scores are saved only in this browser.</p>
+    </footer>
+  </div>
+
+  <script>
+    (function () {
+      var theme = document.getElementById('set-theme');
+      var scale = document.getElementById('set-scale');
+      var motion = document.getElementById('set-motion');
+      theme.value = FG.settings.theme;
+      scale.value = FG.settings.scale;
+      motion.checked = !!FG.settings.reduceMotion;
+      theme.addEventListener('change', function () { FG.set('theme', theme.value); });
+      scale.addEventListener('change', function () { FG.set('scale', scale.value); });
+      motion.addEventListener('change', function () { FG.set('reduceMotion', motion.checked); });
+
+      Array.prototype.forEach.call(document.querySelectorAll('[data-best]'), function (el) {
+        var v = FG.getBest(el.getAttribute('data-best'));
+        if (v !== null) el.textContent = v + (el.getAttribute('data-unit') || '');
+      });
+
+      var search = document.getElementById('search');
+      var items = document.querySelectorAll('#games > li');
+      var none = document.getElementById('no-results');
+      search.addEventListener('input', function () {
+        var q = search.value.trim().toLowerCase();
+        var shown = 0;
+        Array.prototype.forEach.call(items, function (li) {
+          var match = !q || li.getAttribute('data-name').indexOf(q) !== -1;
+          li.hidden = !match;
+          if (match) shown++;
+        });
+        none.hidden = shown > 0;
+      });
+    })();
+  </script>
+</body>
+</html>
