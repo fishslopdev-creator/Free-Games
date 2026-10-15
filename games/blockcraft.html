@@ -320,9 +320,9 @@ def(6, { name: 'Leaves', tex: 'leaves', hard: 0.2, opaque: false, cutout: true, 
 def(7, { name: 'Planks', tex: 'planks', hard: 2 });
 def(8, { name: 'Sand', tex: 'sand', hard: 0.5 });
 def(9, { name: 'Water', tex: 'water', solid: false, opaque: false, hard: -1, water: true, liquid: true });
-def(10, { name: 'Coal Ore', tex: 'coal_ore', hard: 3, pick: true, tier: 1, drop: 101 });
-def(11, { name: 'Iron Ore', tex: 'iron_ore', hard: 3, pick: true, tier: 2 });
-def(12, { name: 'Diamond Ore', tex: 'diamond_ore', hard: 3, pick: true, tier: 3, drop: 103 });
+def(10, { ore: true, name: 'Coal Ore', tex: 'coal_ore', hard: 3, pick: true, tier: 1, drop: 101 });
+def(11, { ore: true, name: 'Iron Ore', tex: 'iron_ore', hard: 3, pick: true, tier: 2 });
+def(12, { ore: true, name: 'Diamond Ore', tex: 'diamond_ore', hard: 3, pick: true, tier: 3, drop: 103 });
 def(13, { name: 'Bedrock', tex: 'bedrock', hard: -1 });
 def(14, { name: 'Glass', tex: 'glass', hard: 0.3, opaque: false, cutout: true });
 def(15, { name: 'Crafting Table', tex: ['table_top', 'planks', 'table_side'], hard: 2.5 });
@@ -343,9 +343,9 @@ def(29, { name: 'Nether Portal', tex: 'nether_portal', solid: false, opaque: fal
 def(30, { name: 'Gravel', tex: 'gravel', hard: 0.6 });
 def(31, { name: 'Deepslate', tex: 'deepslate', hard: 3, pick: true, tier: 1, drop: 32 });
 def(32, { name: 'Cobbled Deepslate', tex: 'cobbled_deepslate', hard: 3.5, pick: true, tier: 1 });
-def(33, { name: 'Deepslate Coal Ore', tex: 'deepslate_coal', hard: 4.5, pick: true, tier: 1, drop: 101 });
-def(34, { name: 'Deepslate Iron Ore', tex: 'deepslate_iron', hard: 4.5, pick: true, tier: 2, drop: 11 });
-def(35, { name: 'Deepslate Diamond Ore', tex: 'deepslate_diamond', hard: 4.5, pick: true, tier: 3, drop: 103 });
+def(33, { ore: true, name: 'Deepslate Coal Ore', tex: 'deepslate_coal', hard: 4.5, pick: true, tier: 1, drop: 101 });
+def(34, { ore: true, name: 'Deepslate Iron Ore', tex: 'deepslate_iron', hard: 4.5, pick: true, tier: 2, drop: 11 });
+def(35, { ore: true, name: 'Deepslate Diamond Ore', tex: 'deepslate_diamond', hard: 4.5, pick: true, tier: 3, drop: 103 });
 var TEX = [];
 BL.forEach(function (b, i) {
   if (!b.tex) return;
@@ -760,6 +760,35 @@ function genOverworld(b, cx, cz) {
       b[bi] = cy <= 9 ? B.LAVA : 0;
     }
   }
+  // Make the deep treasures findable from caves: diamonds on deep cave walls, and obsidian crusts
+  // on lava pools (like where lava meets water in Minecraft).
+  var NB = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
+  for (var oy = 5; oy < 34; oy++) for (var oz = 0; oz < CS; oz++) for (var ox = 0; ox < CS; ox++) {
+    var oi = li(ox, oy, oz), cur = b[oi], wx = x0 + ox, wz = z0 + oz;
+    if (cur === B.LAVA) {
+      var up = b[li(ox, oy + 1, oz)], side = false;
+      for (var s1 = 0; s1 < 4; s1++) {
+        var sx = ox + NB[s1 === 2 ? 4 : s1 === 3 ? 5 : s1][0], sz = oz + NB[s1 === 2 ? 4 : s1 === 3 ? 5 : s1][2];
+        if (sx >= 0 && sz >= 0 && sx < CS && sz < CS && b[li(sx, oy, sz)] === 0) side = true;
+      }
+      if ((up === 0 && hash3(wx, oy, wz) < 0.55) || (side && hash3(wx, oy + 3, wz) < 0.7)) b[oi] = B.OBSIDIAN;
+      continue;
+    }
+    if (cur !== B.DEEPSLATE || oy > 30) continue;
+    var open = false;
+    for (var n2 = 0; n2 < 6 && !open; n2++) {
+      var ax2 = ox + NB[n2][0], az2 = oz + NB[n2][2];
+      if (ax2 >= 0 && az2 >= 0 && ax2 < CS && az2 < CS && b[li(ax2, oy + NB[n2][1], az2)] === 0) open = true;
+    }
+    if (open && hash3(wx, oy + 500, wz) < 0.014) {
+      b[oi] = B.DEEP_DIAMOND;
+      // a few more tucked behind it
+      for (var n3 = 0; n3 < 6; n3++) {
+        var bx3 = ox + NB[n3][0], by3 = oy + NB[n3][1], bz3 = oz + NB[n3][2];
+        if (bx3 >= 0 && bz3 >= 0 && bx3 < CS && bz3 < CS && b[li(bx3, by3, bz3)] === B.DEEPSLATE && hash3(wx + n3, by3, wz) < 0.4) b[li(bx3, by3, bz3)] = B.DEEP_DIAMOND;
+      }
+    }
+  }
   // Trees: decided per column, so trees near a chunk edge spill their leaves correctly into neighbours.
   var trees = [];
   for (var tz = z0 - 2; tz < z0 + CS + 2; tz++) for (var tx = x0 - 2; tx < x0 + CS + 2; tx++) {
@@ -1054,7 +1083,7 @@ function buildChunk(c) {
       var sh = bd.glow ? 1.2 : F.s;
       if (shade && !bd.glow && nx >= -1 && nx <= CS && nz >= -1 && nz <= CS) {
         var depth = tops[(nz + 1) * 18 + nx + 1] - ny;
-        if (depth > 0) sh *= Math.max(0.5, 1 - depth * 0.04);
+        if (depth > 0) sh *= Math.max(bd.ore ? 0.9 : 0.5, 1 - depth * 0.04);
       }
       for (var k = 0; k < 6; k++) {
         var q = ORDER[k], cc = F.c[q], uv = tileUV(t, UVS[q][0], UVS[q][1]);
