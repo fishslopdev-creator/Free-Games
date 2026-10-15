@@ -1,0 +1,1870 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BlockCraft · Free Games</title>
+<style>
+:root { --panel: rgba(18,20,28,.94); --fg: #eef1f6; --muted: #a8b0c0; --accent: #6dd36d; --border: #3b4152; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #000; color: var(--fg); font-family: system-ui, "Segoe UI", Roboto, Arial, sans-serif; }
+canvas#gl { display: block; width: 100vw; height: 100vh; }
+.hidden { display: none !important; }
+#hud { position: fixed; inset: 0; pointer-events: none; }
+#cross { position: absolute; left: 50%; top: 50%; width: 20px; height: 20px; margin: -10px 0 0 -10px; }
+#cross::before, #cross::after { content: ""; position: absolute; background: #fff; mix-blend-mode: difference; }
+#cross::before { left: 9px; top: 0; width: 2px; height: 20px; }
+#cross::after { top: 9px; left: 0; height: 2px; width: 20px; }
+#breakbar { position: absolute; left: 50%; top: calc(50% + 18px); width: 60px; height: 5px; margin-left: -30px; background: rgba(0,0,0,.5); }
+#breakbar i { display: block; height: 100%; background: #fff; width: 0; }
+#bottom { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 4px; }
+#hearts { font-size: 20px; letter-spacing: 1px; color: #e33; text-shadow: 0 1px 0 #000; align-self: flex-start; min-height: 24px; }
+#hearts .e { color: #3a1515; } #hearts .h { color: #f99; }
+#hotbar { display: flex; gap: 3px; background: rgba(0,0,0,.45); padding: 3px; border-radius: 6px; }
+.slot { width: 46px; height: 46px; border: 2px solid #555; border-radius: 4px; background: rgba(40,40,48,.8); position: relative; display: flex; align-items: center; justify-content: center; padding: 0; margin: 0; color: var(--fg); }
+.slot img { width: 32px; height: 32px; image-rendering: pixelated; }
+.slot b { position: absolute; right: 3px; bottom: 1px; font-size: 13px; text-shadow: 1px 1px 0 #000; }
+.slot.sel { border-color: #fff; }
+.slot.pick { border-color: var(--accent); }
+#itemname { min-height: 20px; font-weight: 600; text-shadow: 1px 1px 0 #000; }
+#msgs { position: absolute; left: 10px; bottom: 96px; max-width: 60vw; font-size: 14px; text-shadow: 1px 1px 0 #000; }
+#msgs div { background: rgba(0,0,0,.4); padding: 2px 6px; margin-top: 2px; border-radius: 3px; }
+#boss { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); width: min(420px, 80vw); text-align: center; font-weight: 700; text-shadow: 1px 1px 0 #000; }
+#boss .bar { height: 8px; background: #301040; border: 1px solid #000; margin-top: 3px; }
+#boss .bar i { display: block; height: 100%; background: #c050ff; }
+#debug { position: absolute; top: 8px; left: 8px; font: 12px monospace; background: rgba(0,0,0,.45); padding: 4px 6px; white-space: pre; }
+#hurt { position: absolute; inset: 0; background: rgba(255,0,0,.35); opacity: 0; transition: opacity .25s; }
+#water { position: absolute; inset: 0; background: rgba(30,70,200,.3); }
+#tags span { position: absolute; transform: translate(-50%, -100%); background: rgba(0,0,0,.5); padding: 1px 6px; border-radius: 3px; font-size: 13px; white-space: nowrap; }
+#clickhint { position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%); background: rgba(0,0,0,.6); padding: 10px 16px; border-radius: 8px; font-weight: 700; }
+#chat { position: fixed; left: 10px; bottom: 70px; width: min(420px, 70vw); font: inherit; color: var(--fg); background: rgba(0,0,0,.7); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; }
+.screen { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.55); padding: 16px; overflow: auto; }
+.box { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 20px; max-width: 780px; width: 100%; max-height: 100%; overflow: auto; }
+h1, h2 { margin: 0 0 10px; } h1 { font-size: 2rem; }
+p, li { color: var(--muted); margin: 6px 0; }
+label { display: block; font-weight: 600; margin: 10px 0 4px; }
+label.inline { display: flex; gap: 8px; align-items: center; }
+input, select, textarea { font: inherit; color: var(--fg); background: #0e1016; border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; width: 100%; }
+input[type=checkbox] { width: auto; }
+textarea { height: 70px; font: 12px monospace; resize: vertical; }
+button { font: inherit; font-weight: 700; cursor: pointer; border: 0; border-radius: 8px; padding: 10px 16px; background: var(--accent); color: #06200a; margin: 6px 6px 0 0; }
+button.sec { background: #2b3040; color: var(--fg); }
+button:disabled { opacity: .45; cursor: default; }
+a { color: #9cc4ff; }
+.row { display: flex; gap: 12px; flex-wrap: wrap; } .row > * { flex: 1 1 180px; }
+kbd { border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; font-size: .85em; background: #0e1016; color: var(--fg); }
+details { margin-top: 14px; } summary { cursor: pointer; font-weight: 700; }
+.grid { display: grid; grid-template-columns: repeat(9, 46px); gap: 3px; margin-bottom: 10px; }
+.grid .slot { cursor: pointer; }
+.recipes { display: flex; flex-direction: column; gap: 6px; }
+.recipe { display: flex; align-items: center; gap: 8px; background: #0e1016; border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; }
+.recipe img { width: 28px; height: 28px; image-rendering: pixelated; }
+.recipe .need { flex: 1; font-size: 13px; color: var(--muted); }
+.recipe .need strong { color: var(--fg); display: block; font-size: 14px; }
+.recipe button { margin: 0; padding: 6px 10px; }
+.invwrap { display: flex; gap: 16px; flex-wrap: wrap; }
+:focus-visible { outline: 3px solid #ffb547; outline-offset: 2px; }
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+
+<div id="hud" class="hidden">
+  <div id="water" class="hidden"></div>
+  <div id="hurt"></div>
+  <div id="tags"></div>
+  <div id="cross"></div>
+  <div id="breakbar" class="hidden"><i></i></div>
+  <div id="boss" class="hidden"><span>Sky Dragon</span><div class="bar"><i></i></div></div>
+  <div id="debug" class="hidden"></div>
+  <div id="clickhint" class="hidden">Click to play</div>
+  <div id="msgs" aria-live="polite"></div>
+  <div id="bottom"><div id="itemname"></div><div id="hearts"></div><div id="hotbar"></div></div>
+</div>
+<input id="chat" class="hidden" maxlength="120" placeholder="Say something, then press Enter" aria-label="Chat message">
+
+<div id="title" class="screen"><div class="box">
+  <h1>BlockCraft</h1>
+  <p>Mine, build, craft, and survive the night, then summon and defeat the Sky Dragon. Runs entirely in this one page; nothing to install.</p>
+  <div class="row">
+    <div><label for="name">Your name</label><input id="name" maxlength="16" autocomplete="off"></div>
+    <div><label for="seed">World seed</label><input id="seed" placeholder="Leave blank for random" autocomplete="off"></div>
+    <div><label for="mode">Game mode</label><select id="mode"><option value="survival">Survival</option><option value="creative">Creative</option></select></div>
+  </div>
+  <button id="play" type="button">New world</button>
+  <button id="continue" type="button" class="sec hidden">Continue saved world</button>
+  <button id="joinBtn" type="button" class="sec">Join a friend</button>
+  <details>
+    <summary>Controls</summary>
+    <ul>
+      <li>Click the game to capture the mouse, then move the mouse to look. <kbd>Esc</kbd> pauses.</li>
+      <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move, <kbd>Space</kbd> jump/swim, <kbd>Shift</kbd> sprint.</li>
+      <li>Hold left click to mine or attack. Right click to place a block, eat food, or use a crafting table/furnace.</li>
+      <li><kbd>1</kbd>–<kbd>9</kbd> or the mouse wheel pick a hotbar slot. <kbd>E</kbd> opens your inventory and crafting.</li>
+      <li>Creative: double-tap <kbd>Space</kbd> or press <kbd>F</kbd> to fly; <kbd>Space</kbd>/<kbd>Shift</kbd> go up/down.</li>
+      <li><kbd>T</kbd> chats in multiplayer. <kbd>F3</kbd> shows coordinates.</li>
+    </ul>
+  </details>
+  <details>
+    <summary>How to beat the game</summary>
+    <ol>
+      <li>Punch a tree for logs, then craft planks, sticks and a crafting table.</li>
+      <li>Make a wooden pickaxe, mine stone, and upgrade to stone tools. Craft a furnace.</li>
+      <li>Find coal and iron ore underground. Smelt iron in the furnace and make iron tools.</li>
+      <li>Dig deep (below height 14) for diamonds.</li>
+      <li>Craft a <b>Dragon Altar</b> (3 diamonds, 4 iron, 2 cobblestone) and place it to summon the Sky Dragon.</li>
+      <li>Hit the dragon when it swoops at you or lands by the altar. Tip: a <b>Mace</b> hits much harder if you jump down onto your target.</li>
+    </ol>
+  </details>
+  <p><a href="../index.html">← All games</a></p>
+</div></div>
+
+<div id="pause" class="screen hidden"><div class="box">
+  <h2>Paused</h2>
+  <button id="resume" type="button">Back to game</button>
+  <button id="mpBtn" type="button" class="sec">Invite a friend</button>
+  <button id="quit" type="button" class="sec">Save &amp; quit to title</button>
+  <label class="inline" id="pvpWrap"><input type="checkbox" id="pvp" checked> PvP: players can hurt each other</label>
+  <p id="pauseInfo"></p>
+</div></div>
+
+<div id="inv" class="screen hidden"><div class="box">
+  <h2>Inventory</h2>
+  <p id="invhint"></p>
+  <div class="invwrap">
+    <div>
+      <div id="palette" class="grid"></div>
+      <div id="invgrid" class="grid"></div>
+    </div>
+    <div style="flex:1;min-width:260px">
+      <h2 style="font-size:1.1rem">Crafting</h2>
+      <p id="stations"></p>
+      <div id="recipes" class="recipes"></div>
+    </div>
+  </div>
+  <button id="invClose" type="button">Close (E)</button>
+</div></div>
+
+<div id="host" class="screen hidden"><div class="box">
+  <h2>Invite a friend</h2>
+  <p>GitHub Pages can only host files; it can't run a game server. So your computers connect straight to each other after you swap two codes once (send them by chat, email, or anything else).</p>
+  <ol>
+    <li>Click <b>Make invite code</b> and send the code to your friend.</li>
+    <li>Your friend opens BlockCraft, clicks <b>Join a friend</b>, pastes it, and sends you back their reply code.</li>
+    <li>Paste the reply code below and click <b>Connect</b>. Repeat for each extra friend.</li>
+  </ol>
+  <button id="mkInvite" type="button">Make invite code</button>
+  <textarea id="inviteOut" readonly aria-label="Your invite code"></textarea>
+  <button id="copyInvite" type="button" class="sec">Copy invite code</button>
+  <label for="replyIn">Friend's reply code</label>
+  <textarea id="replyIn"></textarea>
+  <button id="connect" type="button">Connect</button>
+  <button id="hostBack" type="button" class="sec">Back</button>
+  <p id="hostStatus" role="status"></p>
+</div></div>
+
+<div id="join" class="screen hidden"><div class="box">
+  <h2>Join a friend</h2>
+  <p>Ask your friend to open their world, press <kbd>Esc</kbd>, and click <b>Invite a friend</b>.</p>
+  <label for="inviteIn">Invite code from your friend</label>
+  <textarea id="inviteIn"></textarea>
+  <button id="mkReply" type="button">Make reply code</button>
+  <textarea id="replyOut" readonly aria-label="Your reply code"></textarea>
+  <button id="copyReply" type="button" class="sec">Copy reply code</button>
+  <p id="joinStatus" role="status">Send the reply code back. The game starts as soon as your friend clicks Connect.</p>
+  <button id="joinBack" type="button" class="sec">Back</button>
+</div></div>
+
+<div id="dead" class="screen hidden"><div class="box"><h2>You died!</h2><p id="deadMsg"></p><button id="respawn" type="button">Respawn</button></div></div>
+<div id="win" class="screen hidden"><div class="box"><h1>You beat BlockCraft!</h1><p id="winMsg"></p><button id="winOk" type="button">Keep playing</button></div></div>
+<div id="err" class="screen hidden"><div class="box"><h2>BlockCraft can't start</h2><p id="errMsg"></p><p><a href="../index.html">← All games</a></p></div></div>
+
+<script>
+(function () {
+'use strict';
+var $ = function (id) { return document.getElementById(id); };
+function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    var t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+function hashStr(s) { var h = 2166136261; for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+function makeNoise(seed) {
+  function h(x, y) {
+    var n = Math.imul(x, 374761393) + Math.imul(y, 668265263) + Math.imul(seed, 1442695041) | 0;
+    n = Math.imul(n ^ (n >>> 13), 1274126177);
+    return ((n ^ (n >>> 16)) >>> 0) / 4294967296;
+  }
+  function sm(t) { return t * t * (3 - 2 * t); }
+  function n2(x, y) {
+    var xi = Math.floor(x), yi = Math.floor(y), u = sm(x - xi), v = sm(y - yi);
+    var a = h(xi, yi), b = h(xi + 1, yi), c = h(xi, yi + 1), d = h(xi + 1, yi + 1);
+    return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+  }
+  return function (x, y) {
+    var s = 0, amp = 1, f = 1, norm = 0;
+    for (var o = 0; o < 4; o++) { s += n2(x * f, y * f) * amp; norm += amp; amp *= 0.5; f *= 2; }
+    return s / norm;
+  };
+}
+function store(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } }
+function load(k, f) { try { var r = localStorage.getItem(k); return r === null ? f : JSON.parse(r); } catch (e) { return f; } }
+
+/* ================= Blocks, items, recipes ================= */
+var TILES = ['grass_top', 'grass_side', 'dirt', 'stone', 'cobble', 'log_side', 'log_top', 'leaves', 'planks', 'sand', 'water',
+  'coal_ore', 'iron_ore', 'diamond_ore', 'bedrock', 'glass', 'table_top', 'table_side', 'furnace_front', 'furnace_side',
+  'altar_top', 'altar_side', 'white'];
+var TI = {}; TILES.forEach(function (n, i) { TI[n] = i; });
+
+var B = { AIR: 0, GRASS: 1, DIRT: 2, STONE: 3, COBBLE: 4, LOG: 5, LEAVES: 6, PLANKS: 7, SAND: 8, WATER: 9,
+  COAL_ORE: 10, IRON_ORE: 11, DIAMOND_ORE: 12, BEDROCK: 13, GLASS: 14, TABLE: 15, FURNACE: 16, ALTAR: 17 };
+var BL = [];
+function def(id, o) { BL[id] = Object.assign({ solid: true, opaque: true, hard: 1, tier: 0, pick: false, drop: id }, o); }
+def(0, { name: 'Air', solid: false, opaque: false });
+def(1, { name: 'Grass Block', tex: ['grass_top', 'dirt', 'grass_side'], hard: 0.6, drop: 2 });
+def(2, { name: 'Dirt', tex: 'dirt', hard: 0.5 });
+def(3, { name: 'Stone', tex: 'stone', hard: 1.5, pick: true, tier: 1, drop: 4 });
+def(4, { name: 'Cobblestone', tex: 'cobble', hard: 2, pick: true, tier: 1 });
+def(5, { name: 'Log', tex: ['log_top', 'log_top', 'log_side'], hard: 2 });
+def(6, { name: 'Leaves', tex: 'leaves', hard: 0.2, opaque: false, cutout: true, drop: 0 });
+def(7, { name: 'Planks', tex: 'planks', hard: 2 });
+def(8, { name: 'Sand', tex: 'sand', hard: 0.5 });
+def(9, { name: 'Water', tex: 'water', solid: false, opaque: false, hard: -1, water: true });
+def(10, { name: 'Coal Ore', tex: 'coal_ore', hard: 3, pick: true, tier: 1, drop: 101 });
+def(11, { name: 'Iron Ore', tex: 'iron_ore', hard: 3, pick: true, tier: 2 });
+def(12, { name: 'Diamond Ore', tex: 'diamond_ore', hard: 3, pick: true, tier: 3, drop: 103 });
+def(13, { name: 'Bedrock', tex: 'bedrock', hard: -1 });
+def(14, { name: 'Glass', tex: 'glass', hard: 0.3, opaque: false, cutout: true });
+def(15, { name: 'Crafting Table', tex: ['table_top', 'planks', 'table_side'], hard: 2.5 });
+def(16, { name: 'Furnace', tex: ['furnace_side', 'furnace_side', 'furnace_front'], hard: 3.5, pick: true, tier: 1 });
+def(17, { name: 'Dragon Altar', tex: ['altar_top', 'altar_side', 'altar_side'], hard: -1 });
+var TEX = [];
+BL.forEach(function (b, i) {
+  if (!b.tex) return;
+  var t = typeof b.tex === 'string' ? [b.tex, b.tex, b.tex] : b.tex;
+  TEX[i] = t.map(function (n) { return TI[n]; });
+});
+
+var IT = {}, ITEM_ORDER = [];
+function item(id, o) { IT[id] = Object.assign({ stack: 64 }, o); ITEM_ORDER.push(id); }
+BL.forEach(function (b, i) { if (i > 0 && i !== B.WATER && i !== B.BEDROCK) item(i, { name: b.name, block: true }); });
+item(100, { name: 'Stick' });
+item(101, { name: 'Coal' });
+item(102, { name: 'Iron Ingot' });
+item(103, { name: 'Diamond' });
+item(104, { name: 'Apple', food: 4 });
+item(105, { name: 'Porkchop', food: 6 });
+var MATS = [['Wooden', '#a77b45'], ['Stone', '#8c8c8c'], ['Iron', '#e2e2e2'], ['Diamond', '#5be0e0']];
+MATS.forEach(function (m, i) {
+  item(110 + i, { name: m[0] + ' Pickaxe', stack: 1, pickTier: i + 1, speed: [2, 4, 6, 8][i], dmg: 2 + i, color: m[1], kind: 'pick' });
+});
+MATS.forEach(function (m, i) {
+  item(120 + i, { name: m[0] + ' Sword', stack: 1, dmg: 4 + i, color: m[1], kind: 'sword' });
+});
+item(130, { name: 'Mace', stack: 1, dmg: 6, mace: true, kind: 'mace' });
+
+var RECIPES = [
+  { out: 7, n: 4, need: { 5: 1 } },
+  { out: 100, n: 4, need: { 7: 2 } },
+  { out: 15, n: 1, need: { 7: 4 } },
+  { out: 110, n: 1, need: { 7: 3, 100: 2 }, at: 15 },
+  { out: 120, n: 1, need: { 7: 2, 100: 1 }, at: 15 },
+  { out: 111, n: 1, need: { 4: 3, 100: 2 }, at: 15 },
+  { out: 121, n: 1, need: { 4: 2, 100: 1 }, at: 15 },
+  { out: 16, n: 1, need: { 4: 8 }, at: 15 },
+  { out: 102, n: 1, need: { 11: 1, 101: 1 }, at: 16 },
+  { out: 14, n: 4, need: { 8: 4, 101: 1 }, at: 16 },
+  { out: 112, n: 1, need: { 102: 3, 100: 2 }, at: 15 },
+  { out: 122, n: 1, need: { 102: 2, 100: 1 }, at: 15 },
+  { out: 113, n: 1, need: { 103: 3, 100: 2 }, at: 15 },
+  { out: 123, n: 1, need: { 103: 2, 100: 1 }, at: 15 },
+  { out: 130, n: 1, need: { 102: 4, 103: 1, 100: 1 }, at: 15 },
+  { out: 17, n: 1, need: { 103: 3, 102: 4, 4: 2 }, at: 15 }
+];
+
+/* ================= Texture atlas (all drawn in code) ================= */
+var atlas = document.createElement('canvas');
+atlas.width = atlas.height = 256;
+(function makeAtlas() {
+  var ctx = atlas.getContext('2d');
+  var r = mulberry32(1234);
+  function tile(name, fn) {
+    var t = TI[name], ox = (t % 16) * 16, oy = Math.floor(t / 16) * 16;
+    var img = ctx.createImageData(16, 16);
+    for (var y = 0; y < 16; y++) for (var x = 0; x < 16; x++) {
+      var c = fn(x, y), o = (y * 16 + x) * 4;
+      img.data[o] = c[0]; img.data[o + 1] = c[1]; img.data[o + 2] = c[2]; img.data[o + 3] = c.length > 3 ? c[3] : 255;
+    }
+    ctx.putImageData(img, ox, oy);
+  }
+  function vary(c, a) { var k = (r() - 0.5) * a; return [clamp(c[0] + k, 0, 255), clamp(c[1] + k, 0, 255), clamp(c[2] + k, 0, 255)]; }
+  var DIRT = [134, 96, 67], GRASS = [95, 159, 53], STONE = [125, 125, 125], PLANK = [176, 138, 82];
+  tile('dirt', function () { return vary(DIRT, 34); });
+  tile('grass_top', function () { return vary(GRASS, 34); });
+  var edge = []; for (var i = 0; i < 16; i++) edge.push(3 + Math.floor(r() * 3));
+  tile('grass_side', function (x, y) { return y < edge[x] ? vary(GRASS, 28) : vary(DIRT, 34); });
+  tile('stone', function () { return vary(STONE, 30); });
+  tile('cobble', function (x, y) {
+    var line = (y % 5 === 0) || ((x + (Math.floor(y / 5) % 2) * 3) % 6 === 0);
+    return line ? vary([80, 80, 80], 20) : vary([135, 135, 135], 40);
+  });
+  tile('log_side', function (x) { return x % 4 === 0 ? vary([80, 60, 36], 20) : vary([108, 82, 50], 22); });
+  tile('log_top', function (x, y) {
+    var d = Math.sqrt((x - 7.5) * (x - 7.5) + (y - 7.5) * (y - 7.5));
+    if (d > 6.8) return vary([90, 68, 40], 20);
+    return Math.floor(d) % 2 ? vary([170, 135, 85], 16) : vary([190, 155, 100], 16);
+  });
+  tile('leaves', function () { return r() < 0.2 ? [0, 0, 0, 0] : vary([58, 126, 40], 44); });
+  var seams = [5, 12, 2, 9];
+  tile('planks', function (x, y) {
+    if (y % 4 === 3 || x === seams[Math.floor(y / 4)]) return vary([120, 92, 52], 14);
+    return vary(PLANK, 22);
+  });
+  tile('sand', function () { return vary([219, 207, 160], 22); });
+  tile('water', function () { var c = vary([48, 96, 214], 24); c.push(170); return c; });
+  function ore(name, col) {
+    var spots = {};
+    for (var k = 0; k < 5; k++) {
+      var cx = 2 + Math.floor(r() * 11), cy = 2 + Math.floor(r() * 11);
+      spots[cx + ',' + cy] = spots[(cx + 1) + ',' + cy] = spots[cx + ',' + (cy + 1)] = 1;
+      if (r() < 0.6) spots[(cx + 1) + ',' + (cy + 1)] = 1;
+    }
+    tile(name, function (x, y) { return spots[x + ',' + y] ? vary(col, 30) : vary(STONE, 30); });
+  }
+  ore('coal_ore', [30, 30, 30]);
+  ore('iron_ore', [216, 162, 122]);
+  ore('diamond_ore', [90, 230, 225]);
+  tile('bedrock', function () { return r() < 0.5 ? vary([40, 40, 40], 30) : vary([105, 105, 105], 40); });
+  tile('glass', function (x, y) {
+    if (x === 0 || y === 0 || x === 15 || y === 15) return [215, 238, 255, 255];
+    if ((x === y || x === y + 1) && x > 2 && x < 8) return [255, 255, 255, 200];
+    return [0, 0, 0, 0];
+  });
+  tile('table_top', function (x, y) {
+    if (x === 0 || y === 0 || x === 15 || y === 15) return vary([95, 70, 40], 10);
+    if (x % 5 === 0 || y % 5 === 0) return vary([130, 96, 56], 10);
+    return vary(PLANK, 18);
+  });
+  tile('table_side', function (x, y) {
+    if (y < 3) return vary([95, 70, 40], 12);
+    if ((x === 3 || x === 4) && y > 4 && y < 12) return vary([150, 150, 150], 20);
+    if (y === 5 && x > 1 && x < 7) return vary([150, 150, 150], 20);
+    if ((x === 11) && y > 4 && y < 13) return vary([110, 80, 45], 10);
+    if (y === 5 && x > 9 && x < 14) return vary([150, 150, 150], 20);
+    return vary(PLANK, 20);
+  });
+  tile('furnace_side', function (x, y) { return (x === 0 || y === 0 || x === 15 || y === 15) ? vary([90, 90, 90], 14) : vary([140, 140, 140], 26); });
+  tile('furnace_front', function (x, y) {
+    if (x > 3 && x < 12 && y > 7 && y < 14) return y === 13 || (y > 9 && r() < 0.3) ? vary([230, 120, 30], 40) : [25, 25, 25];
+    if (x > 3 && x < 12 && y > 2 && y < 6) return [45, 45, 45];
+    return (x === 0 || y === 0 || x === 15 || y === 15) ? vary([90, 90, 90], 14) : vary([140, 140, 140], 26);
+  });
+  tile('altar_top', function (x, y) {
+    var d = Math.sqrt((x - 7.5) * (x - 7.5) + (y - 7.5) * (y - 7.5));
+    if (d < 1.6) return [10, 10, 10];
+    if (d < 4) return vary([80, 220, 120], 30);
+    return vary([46, 22, 70], 24);
+  });
+  tile('altar_side', function (x, y) {
+    if (y < 2) return vary([20, 10, 30], 10);
+    return r() < 0.12 ? vary([170, 90, 230], 40) : vary([36, 18, 54], 20);
+  });
+  tile('white', function () { return [255, 255, 255]; });
+})();
+
+/* ================= Item icons (pixel art, cached) ================= */
+var iconCache = {};
+function iconURL(id) {
+  if (iconCache[id]) return iconCache[id];
+  var c = document.createElement('canvas'); c.width = c.height = 16;
+  var x = c.getContext('2d');
+  function px(a, b, col, s) { x.fillStyle = col; x.fillRect(a, b, s || 1, s || 1); }
+  function line(x0, y0, x1, y1, col, th) {
+    var n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
+    for (var i = 0; i <= n; i++) px(Math.round(x0 + (x1 - x0) * i / n), Math.round(y0 + (y1 - y0) * i / n), col, th);
+  }
+  function disc(cx, cy, rad, col) { for (var yy = 0; yy < 16; yy++) for (var xx = 0; xx < 16; xx++) if ((xx - cx) * (xx - cx) + (yy - cy) * (yy - cy) <= rad * rad) px(xx, yy, col); }
+  var BROWN = '#7a5530';
+  var it = IT[id];
+  if (it.block) {
+    var t = TEX[id][2];
+    x.drawImage(atlas, (t % 16) * 16, Math.floor(t / 16) * 16, 16, 16, 0, 0, 16, 16);
+  } else if (id === 100) {
+    line(3, 13, 12, 3, BROWN, 2);
+  } else if (id === 101) {
+    disc(8, 8, 5, '#1e1e1e'); px(6, 6, '#444', 2); px(9, 9, '#444', 2);
+  } else if (id === 102) {
+    x.fillStyle = '#c8c8c8'; x.fillRect(3, 6, 10, 5); x.fillStyle = '#f2f2f2'; x.fillRect(4, 6, 8, 1); x.fillStyle = '#999'; x.fillRect(3, 10, 10, 1);
+  } else if (id === 103) {
+    x.fillStyle = '#5be0e0'; x.beginPath(); x.moveTo(8, 2); x.lineTo(14, 7); x.lineTo(8, 14); x.lineTo(2, 7); x.closePath(); x.fill();
+    px(6, 5, '#d8ffff', 2);
+  } else if (id === 104) {
+    disc(8, 9, 5, '#d42a2a'); line(8, 2, 8, 4, BROWN); px(9, 3, '#3a3', 2); px(6, 7, '#f88', 2);
+  } else if (id === 105) {
+    disc(7, 8, 5, '#f0a0a0'); disc(7, 8, 3, '#e07878'); line(11, 11, 14, 14, '#fff', 2);
+  } else if (it.kind === 'pick') {
+    line(3, 13, 10, 6, BROWN, 2); line(5, 2, 13, 10, it.color, 2); px(5, 2, '#333'); px(13, 10, '#333');
+  } else if (it.kind === 'sword') {
+    line(6, 9, 13, 2, it.color, 2); line(3, 8, 7, 12, '#555', 2); line(2, 13, 4, 11, BROWN, 2);
+  } else if (it.kind === 'mace') {
+    line(2, 13, 8, 7, '#6b6b6b', 2); disc(11, 5, 3.6, '#8a8a8a'); disc(11, 5, 1.8, '#b5b5b5');
+    px(11, 0, '#555', 1); px(15, 5, '#555', 1); px(7, 5, '#555', 1); px(11, 9, '#555', 1);
+  }
+  iconCache[id] = c.toDataURL();
+  return iconCache[id];
+}
+
+/* ================= World ================= */
+var WX = 128, WZ = 128, WY = 48, CS = 16, SEA = 20;
+var world = new Uint8Array(WX * WY * WZ);
+var edits = new Map();
+var spawn = [64, 30, 64];
+function idx(x, y, z) { return (y * WZ + z) * WX + x; }
+function inWorld(x, y, z) { return x >= 0 && z >= 0 && x < WX && z < WZ && y >= 0 && y < WY; }
+function getB(x, y, z) { return inWorld(x, y, z) ? world[idx(x, y, z)] : 0; }
+function isSolid(x, y, z) {
+  if (x < 0 || z < 0 || x >= WX || z >= WZ || y < 0) return true;
+  if (y >= WY) return false;
+  return BL[world[idx(x, y, z)]].solid;
+}
+function topY(x, z) { for (var y = WY - 1; y >= 0; y--) if (BL[world[idx(x, y, z)]].solid) return y + 1; return 1; }
+
+function generate(seed) {
+  world.fill(0);
+  edits = new Map();
+  var rng = mulberry32(seed ^ 0x9e3779b9), n1 = makeNoise(seed | 0), n2 = makeNoise((seed * 7 + 3) | 0);
+  var hm = new Int16Array(WX * WZ);
+  for (var z = 0; z < WZ; z++) for (var x = 0; x < WX; x++) {
+    var h = Math.floor(6 + n1(x / 40, z / 40) * 30 + n2(x / 12, z / 12) * 5);
+    h = clamp(h, 3, WY - 12);
+    hm[z * WX + x] = h;
+    var beach = h <= SEA + 1;
+    for (var y = 0; y <= h; y++) {
+      var id;
+      if (y === 0 || (y <= 2 && rng() < 0.5)) id = B.BEDROCK;
+      else if (y < h - 3) id = B.STONE;
+      else if (beach) id = B.SAND;
+      else id = y === h ? B.GRASS : B.DIRT;
+      world[idx(x, y, z)] = id;
+    }
+    for (var w = h + 1; w <= SEA; w++) world[idx(x, w, z)] = B.WATER;
+  }
+  function veins(id, count, size, maxY) {
+    for (var v = 0; v < count; v++) {
+      var vx = Math.floor(rng() * WX), vy = 1 + Math.floor(rng() * maxY), vz = Math.floor(rng() * WZ);
+      for (var k = 0; k < size; k++) {
+        if (inWorld(vx, vy, vz) && world[idx(vx, vy, vz)] === B.STONE) world[idx(vx, vy, vz)] = id;
+        var dir = Math.floor(rng() * 6);
+        if (dir === 0) vx++; else if (dir === 1) vx--; else if (dir === 2) vy++; else if (dir === 3) vy--; else if (dir === 4) vz++; else vz--;
+      }
+    }
+  }
+  veins(B.COAL_ORE, 300, 7, 40);
+  veins(B.IRON_ORE, 190, 5, 30);
+  veins(B.DIAMOND_ORE, 45, 4, 13);
+  for (var tz = 3; tz < WZ - 3; tz++) for (var tx = 3; tx < WX - 3; tx++) {
+    var th0 = hm[tz * WX + tx];
+    if (world[idx(tx, th0, tz)] !== B.GRASS || rng() > 0.012) continue;
+    var th = 4 + Math.floor(rng() * 2);
+    if (th0 + th + 2 >= WY) continue;
+    for (var ly = th - 2; ly <= th + 1; ly++) {
+      var rad = ly >= th ? 1 : 2;
+      for (var dz = -rad; dz <= rad; dz++) for (var dx = -rad; dx <= rad; dx++) {
+        if (Math.abs(dx) === rad && Math.abs(dz) === rad && (ly === th + 1 || rng() < 0.5)) continue;
+        var p = idx(tx + dx, th0 + ly, tz + dz);
+        if (!world[p]) world[p] = B.LEAVES;
+      }
+    }
+    for (var t = 1; t <= th; t++) world[idx(tx, th0 + t, tz)] = B.LOG;
+  }
+  // spawn point: nearest dry grass to the middle
+  spawn = [WX / 2 + 0.5, topY(WX / 2, WZ / 2), WZ / 2 + 0.5];
+  outer:
+  for (var rr = 0; rr < 50; rr++) {
+    for (var a = 0; a < 16; a++) {
+      var sx = Math.floor(WX / 2 + Math.cos(a / 16 * Math.PI * 2) * rr), sz = Math.floor(WZ / 2 + Math.sin(a / 16 * Math.PI * 2) * rr);
+      var sy = topY(sx, sz);
+      if (getB(sx, sy - 1, sz) === B.GRASS && !getB(sx, sy, sz) && !getB(sx, sy + 1, sz)) { spawn = [sx + 0.5, sy, sz + 0.5]; break outer; }
+    }
+  }
+}
+
+/* ================= Rendering ================= */
+var canvas = $('gl');
+var gl, prog, loc = {}, atlasTex, entBuf, lineBuf;
+var chunks = [];
+var NCX = WX / CS, NCZ = WZ / CS;
+
+var VS = 'attribute vec3 aPos;attribute vec2 aUV;attribute vec3 aCol;uniform mat4 uMVP;uniform vec3 uCam;' +
+  'varying vec2 vUV;varying vec3 vCol;varying float vDist;' +
+  'void main(){gl_Position=uMVP*vec4(aPos,1.0);vUV=aUV;vCol=aCol;vDist=length(aPos-uCam);}';
+var FS = 'precision mediump float;uniform sampler2D uTex;uniform vec3 uFog;uniform float uFogFar;uniform float uLight;uniform float uAlpha;' +
+  'varying vec2 vUV;varying vec3 vCol;varying float vDist;' +
+  'void main(){vec4 t=texture2D(uTex,vUV);if(t.a<0.1)discard;vec3 c=t.rgb*vCol*uLight;' +
+  'float f=clamp((vDist-uFogFar*0.55)/(uFogFar*0.45),0.0,1.0);gl_FragColor=vec4(mix(c,uFog,f),t.a*uAlpha);}';
+
+function initGL() {
+  gl = canvas.getContext('webgl', { antialias: false }) || canvas.getContext('experimental-webgl');
+  if (!gl) throw new Error('This browser or computer has WebGL turned off, which BlockCraft needs for 3D graphics.');
+  function sh(type, src) {
+    var s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+    return s;
+  }
+  prog = gl.createProgram();
+  gl.attachShader(prog, sh(gl.VERTEX_SHADER, VS));
+  gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FS));
+  gl.linkProgram(prog);
+  gl.useProgram(prog);
+  ['aPos', 'aUV', 'aCol'].forEach(function (n) { loc[n] = gl.getAttribLocation(prog, n); gl.enableVertexAttribArray(loc[n]); });
+  ['uMVP', 'uCam', 'uTex', 'uFog', 'uFogFar', 'uLight', 'uAlpha'].forEach(function (n) { loc[n] = gl.getUniformLocation(prog, n); });
+  atlasTex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, atlasTex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, atlas);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.uniform1i(loc.uTex, 0);
+  gl.enable(gl.DEPTH_TEST);
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+  entBuf = gl.createBuffer();
+  lineBuf = gl.createBuffer();
+  for (var cz = 0; cz < NCZ; cz++) for (var cx = 0; cx < NCX; cx++) {
+    chunks.push({ cx: cx, cz: cz, op: gl.createBuffer(), opN: 0, wa: gl.createBuffer(), waN: 0, dirty: true });
+  }
+}
+
+var FACES = [
+  { n: [1, 0, 0], c: [[1, 0, 1], [1, 0, 0], [1, 1, 0], [1, 1, 1]], s: 0.8, t: 2 },
+  { n: [-1, 0, 0], c: [[0, 0, 0], [0, 0, 1], [0, 1, 1], [0, 1, 0]], s: 0.8, t: 2 },
+  { n: [0, 1, 0], c: [[0, 1, 1], [1, 1, 1], [1, 1, 0], [0, 1, 0]], s: 1.0, t: 0 },
+  { n: [0, -1, 0], c: [[0, 0, 0], [1, 0, 0], [1, 0, 1], [0, 0, 1]], s: 0.55, t: 1 },
+  { n: [0, 0, 1], c: [[0, 0, 1], [1, 0, 1], [1, 1, 1], [0, 1, 1]], s: 0.68, t: 2 },
+  { n: [0, 0, -1], c: [[1, 0, 0], [0, 0, 0], [0, 1, 0], [1, 1, 0]], s: 0.68, t: 2 }
+];
+var UVS = [[0, 1], [1, 1], [1, 0], [0, 0]], ORDER = [0, 1, 2, 0, 2, 3];
+function tileUV(t, u, v) { return [((t % 16) * 16 + (u ? 15.98 : 0.02)) / 256, (Math.floor(t / 16) * 16 + (v ? 15.98 : 0.02)) / 256]; }
+function nbRender(x, y, z) {
+  if (y < 0) return B.BEDROCK;
+  if (y >= WY || x < 0 || z < 0 || x >= WX || z >= WZ) return 0;
+  return world[idx(x, y, z)];
+}
+
+function buildChunk(c) {
+  var op = [], wa = [];
+  var x0 = c.cx * CS, z0 = c.cz * CS;
+  for (var y = 0; y < WY; y++) for (var z = z0; z < z0 + CS; z++) for (var x = x0; x < x0 + CS; x++) {
+    var id = world[idx(x, y, z)];
+    if (!id) continue;
+    var bd = BL[id];
+    for (var f = 0; f < 6; f++) {
+      var F = FACES[f];
+      var nid = nbRender(x + F.n[0], y + F.n[1], z + F.n[2]);
+      var nb = BL[nid];
+      if (nb.opaque || nid === id) continue;
+      if (bd.water && f !== 2 && nid !== 0) continue; // only show water surface/edges against air
+      var arr = bd.water ? wa : op;
+      var t = TEX[id][F.t];
+      var drop = bd.water && f === 2 && nid === 0 ? 0.12 : 0;
+      for (var k = 0; k < 6; k++) {
+        var q = ORDER[k], cc = F.c[q], uv = tileUV(t, UVS[q][0], UVS[q][1]);
+        arr.push(x + cc[0], y + cc[1] - (cc[1] ? drop : 0), z + cc[2], uv[0], uv[1], F.s, F.s, F.s);
+      }
+    }
+  }
+  gl.bindBuffer(gl.ARRAY_BUFFER, c.op);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(op), gl.STATIC_DRAW);
+  c.opN = op.length / 8;
+  gl.bindBuffer(gl.ARRAY_BUFFER, c.wa);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(wa), gl.STATIC_DRAW);
+  c.waN = wa.length / 8;
+  c.dirty = false;
+}
+function markDirty(x, z) {
+  var cx = Math.floor(x / CS), cz = Math.floor(z / CS);
+  function m(a, b) { if (a >= 0 && b >= 0 && a < NCX && b < NCZ) chunks[b * NCX + a].dirty = true; }
+  m(cx, cz);
+  if (x % CS === 0) m(cx - 1, cz);
+  if (x % CS === CS - 1) m(cx + 1, cz);
+  if (z % CS === 0) m(cx, cz - 1);
+  if (z % CS === CS - 1) m(cx, cz + 1);
+}
+
+function attribs() {
+  gl.vertexAttribPointer(loc.aPos, 3, gl.FLOAT, false, 32, 0);
+  gl.vertexAttribPointer(loc.aUV, 2, gl.FLOAT, false, 32, 12);
+  gl.vertexAttribPointer(loc.aCol, 3, gl.FLOAT, false, 32, 20);
+}
+
+function mul(a, b) {
+  var o = new Float32Array(16);
+  for (var i = 0; i < 4; i++) for (var j = 0; j < 4; j++) {
+    var s = 0; for (var k = 0; k < 4; k++) s += a[k * 4 + j] * b[i * 4 + k];
+    o[i * 4 + j] = s;
+  }
+  return o;
+}
+function perspective(fovy, aspect, near, far) {
+  var f = 1 / Math.tan(fovy / 2), nf = 1 / (near - far);
+  return new Float32Array([f / aspect, 0, 0, 0, 0, f, 0, 0, 0, 0, (far + near) * nf, -1, 0, 0, 2 * far * near * nf, 0]);
+}
+function viewMatrix(eye, yaw, pitch) {
+  var cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(-pitch), sp = Math.sin(-pitch);
+  var ry = new Float32Array([cy, 0, -sy, 0, 0, 1, 0, 0, sy, 0, cy, 0, 0, 0, 0, 1]);
+  var rx = new Float32Array([1, 0, 0, 0, 0, cp, sp, 0, 0, -sp, cp, 0, 0, 0, 0, 1]);
+  var tr = new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -eye[0], -eye[1], -eye[2], 1]);
+  return mul(rx, mul(ry, tr));
+}
+
+/* Entity models are built from coloured boxes each frame. */
+var WHITE_UV = tileUV(TI.white, 0, 0);
+function addBox(a, e, lx, ly, lz, sx, sy, sz, col, swing, flash) {
+  var cyw = Math.cos(e.yaw), syw = Math.sin(e.yaw);
+  var cs = Math.cos(swing || 0), ss = Math.sin(swing || 0), pivot = ly + sy;
+  var r = col[0], g = col[1], b = col[2];
+  if (flash) { r = 1; g = g * 0.4; b = b * 0.4; }
+  for (var f = 0; f < 6; f++) {
+    var F = FACES[f];
+    for (var k = 0; k < 6; k++) {
+      var cc = F.c[ORDER[k]];
+      var px = lx + (cc[0] - 0.5) * sx, py = ly + cc[1] * sy, pz = lz + (cc[2] - 0.5) * sz;
+      if (swing) { var dy = py - pivot, dz = pz - lz; py = pivot + dy * cs - dz * ss; pz = lz + dy * ss + dz * cs; }
+      var wx = px * cyw - pz * syw, wz = px * syw + pz * cyw;
+      a.push(e.pos[0] + wx, e.pos[1] + py, e.pos[2] + wz, WHITE_UV[0], WHITE_UV[1], r * F.s, g * F.s, b * F.s);
+    }
+  }
+}
+function hexCol(h) { return [parseInt(h.slice(1, 3), 16) / 255, parseInt(h.slice(3, 5), 16) / 255, parseInt(h.slice(5, 7), 16) / 255]; }
+var SKIN = hexCol('#e0b48c');
+function drawHumanoid(a, e, shirt, pants, head, zombie) {
+  var fl = e.hurtT > 0, s = Math.sin(e.walk || 0) * 0.6 * Math.min(1, e.moveAmt || 0);
+  addBox(a, e, -0.125, 0, 0, 0.25, 0.75, 0.25, pants, s, fl);
+  addBox(a, e, 0.125, 0, 0, 0.25, 0.75, 0.25, pants, -s, fl);
+  addBox(a, e, 0, 0.75, 0, 0.5, 0.75, 0.28, shirt, 0, fl);
+  addBox(a, e, -0.375, 0.75, 0, 0.25, 0.75, 0.25, zombie ? head : shirt, zombie ? Math.PI / 2 : -s, fl);
+  addBox(a, e, 0.375, 0.75, 0, 0.25, 0.75, 0.25, zombie ? head : shirt, zombie ? Math.PI / 2 : s, fl);
+  addBox(a, e, 0, 1.5, 0, 0.5, 0.5, 0.5, head, 0, fl);
+  addBox(a, e, -0.12, 1.75, -0.255, 0.1, 0.08, 0.02, [0.1, 0.1, 0.1], 0, false);
+  addBox(a, e, 0.12, 1.75, -0.255, 0.1, 0.08, 0.02, [0.1, 0.1, 0.1], 0, false);
+}
+var PIG = hexCol('#f0a5a5'), PIG_D = hexCol('#d9827f');
+function drawPig(a, e) {
+  var fl = e.hurtT > 0, s = Math.sin(e.walk || 0) * 0.5 * Math.min(1, e.moveAmt || 0);
+  [[-0.25, -0.35, s], [0.25, -0.35, -s], [-0.25, 0.35, -s], [0.25, 0.35, s]].forEach(function (l) {
+    addBox(a, e, l[0], 0, l[1], 0.22, 0.35, 0.22, PIG_D, l[2], fl);
+  });
+  addBox(a, e, 0, 0.35, 0, 0.62, 0.5, 1.0, PIG, 0, fl);
+  addBox(a, e, 0, 0.45, -0.68, 0.5, 0.5, 0.4, PIG, 0, fl);
+  addBox(a, e, 0, 0.52, -0.9, 0.26, 0.18, 0.06, PIG_D, 0, fl);
+}
+var DRAGON = hexCol('#2b1a3a'), DRAGON_W = hexCol('#3f2a55'), EYE = hexCol('#d070ff');
+function drawDragon(a, e) {
+  var fl = e.hurtT > 0, flap = Math.sin(performance.now() / 180) * 0.9;
+  addBox(a, e, 0, 0, 0, 1.6, 1.2, 3.4, DRAGON, 0, fl);
+  addBox(a, e, 0, 0.35, -2.3, 0.6, 0.6, 1.4, DRAGON, 0, fl);
+  addBox(a, e, 0, 0.3, -3.6, 1.0, 0.8, 1.4, DRAGON, 0, fl);
+  addBox(a, e, -0.3, 0.85, -4.31, 0.22, 0.14, 0.04, EYE, 0, false);
+  addBox(a, e, 0.3, 0.85, -4.31, 0.22, 0.14, 0.04, EYE, 0, false);
+  addBox(a, e, 0, 0.3, 2.9, 0.5, 0.5, 2.6, DRAGON, 0, fl);
+  addBox(a, e, -1.7, 0.9 + flap * 0.4, 0, 1.8, 0.15, 2.2, DRAGON_W, 0, fl);
+  addBox(a, e, 1.7, 0.9 + flap * 0.4, 0, 1.8, 0.15, 2.2, DRAGON_W, 0, fl);
+  addBox(a, e, -3.4, 0.9 + flap * 1.3, 0.2, 1.8, 0.12, 1.8, DRAGON_W, 0, fl);
+  addBox(a, e, 3.4, 0.9 + flap * 1.3, 0.2, 1.8, 0.12, 1.8, DRAGON_W, 0, fl);
+}
+function playerColors(name) {
+  var h = hashStr(name || '?');
+  var hue = h % 360;
+  function hsl(hh, s, l) {
+    s /= 100; l /= 100;
+    var k = function (n) { return (n + hh / 30) % 12; };
+    var aa = s * Math.min(l, 1 - l);
+    var f = function (n) { return l - aa * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1))); };
+    return [f(0), f(8), f(4)];
+  }
+  return { shirt: hsl(hue, 60, 50), pants: hsl((hue + 200) % 360, 40, 30) };
+}
+
+/* ================= Game state ================= */
+var game = { running: false, mode: 'survival', seed: 0, time: 0.05, dayLen: 600, pvp: true, dragonDead: false, playTime: 0, name: 'Player' };
+var player = { pos: [0, 0, 0], vel: [0, 0, 0], yaw: 0, pitch: 0, w: 0.6, h: 1.8, hp: 20, onGround: false, fall: 0, flying: false,
+  kbT: 0, lastHurt: 0, regenT: 0, attackT: 0, useT: 0, dead: false, inWater: false };
+var inv = new Array(36).fill(null), sel = 0;
+var mobs = [], mobId = 1, others = {};
+var keys = {}, mouse = { left: false, right: false };
+var locked = false;
+var target = null, entTarget = null, breakState = { key: '', p: 0 };
+var debugOn = false;
+
+function creative() { return game.mode === 'creative'; }
+function held() { return inv[sel]; }
+function heldItem() { var h = inv[sel]; return h ? IT[h.id] : null; }
+function daylight() { var s = Math.sin(game.time * Math.PI * 2); return clamp(0.3 + (s + 0.25) * 0.9, 0.22, 1); }
+function isNight() { return Math.sin(game.time * Math.PI * 2) < -0.12; }
+
+/* ---------- inventory ---------- */
+function addItem(id, n) {
+  var max = IT[id].stack;
+  for (var i = 0; i < 36 && n > 0; i++) {
+    var s = inv[i];
+    if (s && s.id === id && s.n < max) { var k = Math.min(n, max - s.n); s.n += k; n -= k; }
+  }
+  for (var j = 0; j < 36 && n > 0; j++) {
+    if (!inv[j]) { var m = Math.min(n, max); inv[j] = { id: id, n: m }; n -= m; }
+  }
+  renderHotbar();
+  return n;
+}
+function countItem(id) { var c = 0; inv.forEach(function (s) { if (s && s.id === id) c += s.n; }); return c; }
+function removeItem(id, n) {
+  for (var i = 35; i >= 0 && n > 0; i--) {
+    var s = inv[i];
+    if (s && s.id === id) { var k = Math.min(n, s.n); s.n -= k; n -= k; if (!s.n) inv[i] = null; }
+  }
+  renderHotbar();
+}
+function consumeHeld() {
+  if (creative()) return;
+  var s = inv[sel]; if (!s) return;
+  s.n--; if (s.n <= 0) inv[sel] = null;
+  renderHotbar();
+}
+function nearBlock(id) {
+  var p = player.pos;
+  for (var y = -2; y <= 3; y++) for (var z = -4; z <= 4; z++) for (var x = -4; x <= 4; x++) {
+    if (getB(Math.floor(p[0]) + x, Math.floor(p[1]) + y, Math.floor(p[2]) + z) === id) return true;
+  }
+  return false;
+}
+
+/* ---------- HUD ---------- */
+var hotbarEl = $('hotbar');
+function slotHTML(s) {
+  if (!s) return '';
+  return '<img alt="" src="' + iconURL(s.id) + '">' + (s.n > 1 ? '<b>' + s.n + '</b>' : '');
+}
+function renderHotbar() {
+  var h = '';
+  for (var i = 0; i < 9; i++) h += '<div class="slot' + (i === sel ? ' sel' : '') + '">' + slotHTML(inv[i]) + '</div>';
+  hotbarEl.innerHTML = h;
+  var it = heldItem();
+  $('itemname').textContent = it ? it.name : '';
+}
+function renderHearts() {
+  if (creative()) { $('hearts').innerHTML = ''; return; }
+  var h = '';
+  for (var i = 0; i < 10; i++) {
+    var v = player.hp - i * 2;
+    h += v >= 2 ? '<span>♥</span>' : v === 1 ? '<span class="h">♥</span>' : '<span class="e">♥</span>';
+  }
+  $('hearts').innerHTML = h;
+  $('hearts').setAttribute('aria-label', 'Health ' + player.hp + ' of 20');
+}
+var msgEl = $('msgs');
+function msg(text) {
+  var d = document.createElement('div');
+  d.textContent = text;
+  msgEl.appendChild(d);
+  while (msgEl.children.length > 7) msgEl.removeChild(msgEl.firstChild);
+  setTimeout(function () { if (d.parentNode) d.parentNode.removeChild(d); }, 7000);
+}
+
+/* ---------- screens ---------- */
+var SCREENS = ['title', 'pause', 'inv', 'host', 'join', 'dead', 'win', 'err'];
+function show(id) { $(id).classList.remove('hidden'); }
+function hide(id) { $(id).classList.add('hidden'); }
+function anyScreen() { return SCREENS.some(function (s) { return !$(s).classList.contains('hidden'); }); }
+function lock() {
+  try { var p = canvas.requestPointerLock(); if (p && p.catch) p.catch(function () {}); } catch (e) { /* ignore */ }
+}
+function unlock() { if (document.pointerLockElement) document.exitPointerLock(); }
+function openScreen(id) { keys = {}; mouse.left = mouse.right = false; show(id); unlock(); }
+function closeScreen(id) { hide(id); if (game.running && !anyScreen()) lock(); }
+
+/* ================= Physics ================= */
+function collides(x, y, z, w, h) {
+  var x0 = Math.floor(x - w / 2), x1 = Math.floor(x + w / 2 - 1e-4);
+  var y0 = Math.floor(y), y1 = Math.floor(y + h - 1e-4);
+  var z0 = Math.floor(z - w / 2), z1 = Math.floor(z + w / 2 - 1e-4);
+  for (var yy = y0; yy <= y1; yy++) for (var zz = z0; zz <= z1; zz++) for (var xx = x0; xx <= x1; xx++) {
+    if (isSolid(xx, yy, zz)) return true;
+  }
+  return false;
+}
+function moveEntity(e, dt) {
+  var maxV = Math.max(Math.abs(e.vel[0]), Math.abs(e.vel[1]), Math.abs(e.vel[2]));
+  var steps = Math.max(1, Math.ceil(maxV * dt / 0.3)), sdt = dt / steps;
+  e.onGround = false; e.hitWall = false;
+  for (var s = 0; s < steps; s++) {
+    for (var ai = 0; ai < 3; ai++) {
+      var axis = [1, 0, 2][ai];
+      var d = e.vel[axis] * sdt;
+      if (!d) continue;
+      var old = e.pos[axis];
+      e.pos[axis] += d;
+      if (!collides(e.pos[0], e.pos[1], e.pos[2], e.w, e.h)) continue;
+      if (axis === 1) {
+        if (d < 0) { e.pos[1] = Math.floor(e.pos[1]) + 1; e.onGround = true; }
+        else e.pos[1] = Math.floor(e.pos[1] + e.h) - e.h - 0.001;
+      } else {
+        var half = e.w / 2;
+        if (d > 0) e.pos[axis] = Math.floor(e.pos[axis] + half) - half - 0.001;
+        else e.pos[axis] = Math.floor(e.pos[axis] - half) + 1 + half + 0.001;
+        e.hitWall = true;
+      }
+      if (collides(e.pos[0], e.pos[1], e.pos[2], e.w, e.h)) e.pos[axis] = old;
+      e.vel[axis] = 0;
+    }
+  }
+}
+function inWaterAt(e) {
+  return BL[getB(Math.floor(e.pos[0]), Math.floor(e.pos[1] + 0.3), Math.floor(e.pos[2]))].water;
+}
+
+var lastSpace = 0;
+function updatePlayer(dt) {
+  var p = player;
+  p.inWater = inWaterAt(p);
+  var f = [Math.sin(p.yaw), -Math.cos(p.yaw)], r = [Math.cos(p.yaw), Math.sin(p.yaw)];
+  var mx = 0, mz = 0;
+  if (keys.KeyW) { mx += f[0]; mz += f[1]; }
+  if (keys.KeyS) { mx -= f[0]; mz -= f[1]; }
+  if (keys.KeyD) { mx += r[0]; mz += r[1]; }
+  if (keys.KeyA) { mx -= r[0]; mz -= r[1]; }
+  var len = Math.hypot(mx, mz); if (len) { mx /= len; mz /= len; }
+  var sprint = keys.ShiftLeft || keys.ShiftRight;
+  var speed = p.flying ? 11 : (sprint ? 5.8 : 4.3);
+  if (p.inWater && !p.flying) speed *= 0.55;
+  var accel = (p.onGround || p.flying) ? 18 : 5;
+  if (p.kbT > 0) { accel = 1; p.kbT -= dt; }
+  var k = Math.min(1, accel * dt);
+  p.vel[0] += (mx * speed - p.vel[0]) * k;
+  p.vel[2] += (mz * speed - p.vel[2]) * k;
+  if (p.flying) {
+    var vy = ((keys.Space ? 1 : 0) - (sprint ? 1 : 0)) * 8;
+    p.vel[1] += (vy - p.vel[1]) * Math.min(1, 10 * dt);
+    p.fall = 0;
+  } else if (p.inWater) {
+    p.vel[1] -= 10 * dt;
+    if (keys.Space) p.vel[1] = Math.min(p.vel[1] + 26 * dt, 3.6);
+    p.vel[1] = Math.max(p.vel[1], -3);
+    p.fall = 0;
+  } else {
+    p.vel[1] -= 28 * dt;
+    if (keys.Space && p.onGround) p.vel[1] = 8.4;
+    p.vel[1] = Math.max(p.vel[1], -45);
+    if (p.vel[1] < 0) p.fall += -p.vel[1] * dt;
+  }
+  moveEntity(p, dt);
+  if (p.onGround) {
+    if (p.flying) p.flying = false;
+    if (p.fall > 3.2 && !creative()) hurtPlayer(Math.floor(p.fall - 2.5), 0, 0, 'fell too far');
+    p.fall = 0;
+  }
+  // regenerate slowly when not hurt for a while
+  if (!creative() && p.hp < 20 && performance.now() - p.lastHurt > 5000) {
+    p.regenT += dt;
+    if (p.regenT > 2.5) { p.regenT = 0; p.hp++; renderHearts(); }
+  }
+}
+
+function hurtPlayer(dmg, kx, kz, cause) {
+  if (creative() || player.dead || dmg <= 0) return;
+  player.hp = Math.max(0, player.hp - dmg);
+  player.lastHurt = performance.now();
+  if (kx || kz) { player.vel[0] = kx * 7; player.vel[2] = kz * 7; player.vel[1] = 5; player.kbT = 0.25; }
+  var h = $('hurt'); h.style.opacity = 1; setTimeout(function () { h.style.opacity = 0; }, 150);
+  renderHearts();
+  if (player.hp <= 0) die(cause);
+}
+function die(cause) {
+  player.dead = true;
+  $('deadMsg').textContent = 'You ' + (cause || 'died') + '. Your items are safe — you keep your inventory in BlockCraft.';
+  openScreen('dead');
+  if (net.role === 'guest') netSend(net.host, { t: 'chat', name: '', text: game.name + ' ' + (cause || 'died') });
+  else broadcastChat('', game.name + ' ' + (cause || 'died'));
+}
+function respawn() {
+  player.dead = false;
+  player.hp = 20;
+  player.pos = spawn.slice();
+  player.vel = [0, 0, 0];
+  player.fall = 0;
+  renderHearts();
+  closeScreen('dead');
+}
+
+/* ================= Ray casting ================= */
+function eye() { return [player.pos[0], player.pos[1] + 1.62, player.pos[2]]; }
+function lookDir() { var cp = Math.cos(player.pitch); return [Math.sin(player.yaw) * cp, Math.sin(player.pitch), -Math.cos(player.yaw) * cp]; }
+function raycast(o, d, max) {
+  var x = Math.floor(o[0]), y = Math.floor(o[1]), z = Math.floor(o[2]);
+  var sx = d[0] > 0 ? 1 : -1, sy = d[1] > 0 ? 1 : -1, sz = d[2] > 0 ? 1 : -1;
+  function init(dd, oo, c) { if (!dd) return Infinity; return dd > 0 ? (c + 1 - oo) / dd : (oo - c) / -dd; }
+  var tdx = d[0] ? Math.abs(1 / d[0]) : Infinity, tdy = d[1] ? Math.abs(1 / d[1]) : Infinity, tdz = d[2] ? Math.abs(1 / d[2]) : Infinity;
+  var tmx = init(d[0], o[0], x), tmy = init(d[1], o[1], y), tmz = init(d[2], o[2], z);
+  var face = [0, 0, 0], t = 0;
+  for (var i = 0; i < 80; i++) {
+    if (inWorld(x, y, z)) { var b = world[idx(x, y, z)]; if (b && !BL[b].water) return { x: x, y: y, z: z, id: b, face: face, t: t }; }
+    if (tmx < tmy && tmx < tmz) { x += sx; t = tmx; tmx += tdx; face = [-sx, 0, 0]; }
+    else if (tmy < tmz) { y += sy; t = tmy; tmy += tdy; face = [0, -sy, 0]; }
+    else { z += sz; t = tmz; tmz += tdz; face = [0, 0, -sz]; }
+    if (t > max) return null;
+  }
+  return null;
+}
+function rayBox(o, d, min, max) {
+  var t0 = 0, t1 = 1e9;
+  for (var i = 0; i < 3; i++) {
+    if (Math.abs(d[i]) < 1e-9) { if (o[i] < min[i] || o[i] > max[i]) return -1; continue; }
+    var a = (min[i] - o[i]) / d[i], b = (max[i] - o[i]) / d[i];
+    if (a > b) { var tmp = a; a = b; b = tmp; }
+    t0 = Math.max(t0, a); t1 = Math.min(t1, b);
+    if (t0 > t1) return -1;
+  }
+  return t0;
+}
+function pickEntity(o, d, maxT) {
+  var best = null;
+  function test(e, kind, id, reach) {
+    var t = rayBox(o, d, [e.pos[0] - e.w / 2, e.pos[1], e.pos[2] - e.w / 2], [e.pos[0] + e.w / 2, e.pos[1] + e.h, e.pos[2] + e.w / 2]);
+    if (t >= 0 && t <= reach && t < maxT && (!best || t < best.t)) best = { kind: kind, e: e, id: id, t: t };
+  }
+  mobs.forEach(function (m) { test(m, 'mob', m.id, m.type === 'dragon' ? 7 : 4); });
+  Object.keys(others).forEach(function (id) { if (!others[id].dead) test(others[id], 'player', id, 4); });
+  return best;
+}
+
+/* ================= Interaction ================= */
+function breakTime(id) {
+  var b = BL[id];
+  if (b.hard < 0) return Infinity;
+  if (creative()) return 0;
+  var it = heldItem(), base = b.hard * 1.5;
+  if (b.pick) return it && it.pickTier ? base / it.speed : base * 3.3;
+  return base;
+}
+function breakBlock(x, y, z) {
+  var id = getB(x, y, z);
+  setBlock(x, y, z, 0);
+  if (creative()) return;
+  var it = heldItem(), b = BL[id], drop = b.drop;
+  if (b.pick && !(it && it.pickTier >= b.tier)) {
+    drop = 0;
+    msg(b.tier >= 2 ? 'You need a better pickaxe to mine ' + b.name + '.' : 'You need a pickaxe to get anything from ' + b.name + '.');
+  }
+  if (id === B.LEAVES) { var r = Math.random(); drop = r < 0.06 ? 104 : r < 0.16 ? 100 : 0; }
+  if (drop && addItem(drop, 1) > 0) msg('Your inventory is full.');
+}
+function setBlock(x, y, z, id, remote) {
+  if (!inWorld(x, y, z)) return;
+  var i = idx(x, y, z);
+  world[i] = id;
+  edits.set(i, id);
+  markDirty(x, z);
+  if (!remote) {
+    if (net.role === 'guest') netSend(net.host, { t: 'e', i: i, b: id });
+    else sendAll({ t: 'e', i: i, b: id });
+  }
+  if (id === B.ALTAR && net.role !== 'guest') spawnDragon(x, y, z);
+}
+function canPlaceAt(x, y, z) {
+  if (!inWorld(x, y, z)) return false;
+  var cur = getB(x, y, z);
+  if (cur && !BL[cur].water) return false;
+  var boxes = [player].concat(mobs, Object.keys(others).map(function (k) { return others[k]; }));
+  for (var i = 0; i < boxes.length; i++) {
+    var e = boxes[i];
+    if (e.dead) continue;
+    if (x + 1 > e.pos[0] - e.w / 2 && x < e.pos[0] + e.w / 2 && y + 1 > e.pos[1] && y < e.pos[1] + e.h &&
+        z + 1 > e.pos[2] - e.w / 2 && z < e.pos[2] + e.w / 2) return false;
+  }
+  return true;
+}
+
+function attack(t) {
+  var it = heldItem(), dmg = it && it.dmg ? it.dmg : 1, d = lookDir();
+  var hl = Math.hypot(d[0], d[2]) || 1, kx = d[0] / hl, kz = d[2] / hl;
+  if (it && it.mace && !player.onGround && player.fall > 1.5) {
+    var f = player.fall;
+    var bonus = Math.round(Math.min(f, 3) * 4 + clamp(f - 3, 0, 5) * 2 + Math.max(0, f - 8));
+    dmg += bonus;
+    player.fall = 0;
+    player.vel[1] = 4;
+    msg('Smash attack! +' + bonus + ' damage');
+  }
+  if (t.kind === 'mob') {
+    if (net.role === 'guest') netSend(net.host, { t: 'hit', target: 'm:' + t.id, dmg: dmg, kx: kx, kz: kz });
+    else hurtMob(t.e, dmg, kx, kz, 'h');
+    t.e.hurtT = 0.3;
+  } else {
+    if (!game.pvp) { msg('PvP is turned off in this world.'); return; }
+    if (net.role === 'guest') netSend(net.host, { t: 'hit', target: 'p:' + t.id, dmg: dmg, kx: kx, kz: kz });
+    else hitPlayerId(t.id, dmg, kx, kz, game.name);
+    t.e.hurtT = 0.3;
+  }
+}
+
+function useItem() {
+  var it = heldItem();
+  if (it && it.food && !creative()) {
+    if (player.hp >= 20) { msg("You're not hungry — eat when you're hurt."); return; }
+    player.hp = Math.min(20, player.hp + it.food);
+    consumeHeld();
+    renderHearts();
+    msg('Ate ' + it.name + '.');
+    return;
+  }
+  if (!target) return;
+  if ((target.id === B.TABLE || target.id === B.FURNACE) && !(it && it.block)) { openInv(); return; }
+  if (!it || !it.block) return;
+  var x = target.x + target.face[0], y = target.y + target.face[1], z = target.z + target.face[2];
+  if (!canPlaceAt(x, y, z)) return;
+  var id = held().id;
+  setBlock(x, y, z, id);
+  consumeHeld();
+}
+
+function updateInteraction(dt) {
+  var o = eye(), d = lookDir();
+  target = raycast(o, d, creative() ? 6 : 5);
+  entTarget = pickEntity(o, d, target ? target.t : 7);
+  player.attackT -= dt; player.useT -= dt;
+  var bar = $('breakbar');
+  if (mouse.left && entTarget) {
+    if (player.attackT <= 0) { attack(entTarget); player.attackT = 0.45; }
+    breakState.p = 0; bar.classList.add('hidden');
+  } else if (mouse.left && target) {
+    var key = target.x + ',' + target.y + ',' + target.z;
+    if (breakState.key !== key) { breakState.key = key; breakState.p = 0; }
+    var bt = breakTime(target.id);
+    if (bt === Infinity) { bar.classList.add('hidden'); }
+    else if (creative()) {
+      if (player.attackT <= 0) { breakBlock(target.x, target.y, target.z); player.attackT = 0.22; }
+    } else {
+      breakState.p += dt / bt;
+      bar.classList.remove('hidden');
+      bar.firstChild.style.width = Math.min(100, breakState.p * 100) + '%';
+      if (breakState.p >= 1) { breakBlock(target.x, target.y, target.z); breakState.p = 0; breakState.key = ''; }
+    }
+  } else {
+    breakState.p = 0; breakState.key = ''; bar.classList.add('hidden');
+  }
+  if (mouse.right && player.useT <= 0) { useItem(); player.useT = 0.25; }
+}
+
+/* ================= Mobs and the dragon (run by the host) ================= */
+function makeMob(type, x, y, z) {
+  var m = { id: mobId++, type: type, pos: [x, y, z], vel: [0, 0, 0], yaw: Math.random() * 6.28, hurtT: 0, kbT: 0, attackT: 0,
+    wanderT: 0, moving: false, walk: 0, moveAmt: 0, burn: 0, fleeT: 0 };
+  if (type === 'zombie') { m.w = 0.6; m.h = 1.9; m.hp = 20; }
+  else if (type === 'pig') { m.w = 0.8; m.h = 0.9; m.hp = 10; }
+  mobs.push(m);
+  return m;
+}
+function spawnDragon(x, y, z) {
+  if (mobs.some(function (m) { return m.type === 'dragon'; })) { msg('The Sky Dragon is already here!'); return; }
+  var d = { id: mobId++, type: 'dragon', pos: [x + 0.5, y + 22, z + 0.5], vel: [0, 0, 0], yaw: 0, hp: 200, maxHp: 200, w: 3, h: 1.6,
+    home: [x + 0.5, y + 1, z + 0.5], state: 'circle', t: 0, ang: 0, cycle: 0, hurtT: 0, biteT: 0 };
+  mobs.push(d);
+  broadcastChat('', 'The Sky Dragon has awoken! Defeat it to win.');
+}
+function playersForAI() {
+  var list = [{ id: 'h', pos: player.pos, alive: !player.dead && !creative() }];
+  Object.keys(others).forEach(function (k) { var o = others[k]; list.push({ id: k, pos: o.pos, alive: !o.dead && !creative() }); });
+  return list;
+}
+function nearestPlayer(pos, range) {
+  var best = null, bd = range;
+  playersForAI().forEach(function (p) {
+    if (!p.alive) return;
+    var d = Math.hypot(p.pos[0] - pos[0], p.pos[1] - pos[1], p.pos[2] - pos[2]);
+    if (d < bd) { bd = d; best = p; }
+  });
+  return best ? { p: best, d: bd } : null;
+}
+function damagePlayerId(id, dmg, kx, kz, cause) {
+  if (id === 'h') hurtPlayer(dmg, kx, kz, cause);
+  else { var peer = peerById(id); if (peer) netSend(peer, { t: 'dmg', dmg: dmg, kx: kx, kz: kz, cause: cause }); }
+}
+function hitPlayerId(id, dmg, kx, kz, byName) {
+  if (!game.pvp) return;
+  damagePlayerId(id, dmg, kx, kz, 'was defeated by ' + byName);
+}
+function hurtMob(m, dmg, kx, kz, byId) {
+  if (mobs.indexOf(m) === -1) return; // already dead (e.g. two hits arrived at once)
+  m.hp -= dmg;
+  m.hurtT = 0.3;
+  if (m.type !== 'dragon') { m.vel[0] = kx * 6; m.vel[2] = kz * 6; m.vel[1] = 5; m.kbT = 0.3; m.fleeT = 3; }
+  if (m.hp > 0) return;
+  mobs.splice(mobs.indexOf(m), 1);
+  if (m.type === 'pig') giveTo(byId, 105, 1 + Math.floor(Math.random() * 2));
+  if (m.type === 'dragon') {
+    game.dragonDead = true;
+    var who = byId === 'h' ? game.name : (others[byId] ? others[byId].name : 'Someone');
+    sendAll({ t: 'win', by: who });
+    showWin(who);
+  }
+}
+function giveTo(id, item, n) {
+  if (id === 'h') addItem(item, n);
+  else { var peer = peerById(id); if (peer) netSend(peer, { t: 'give', id: item, n: n }); }
+}
+function sunExposed(m) {
+  for (var y = Math.floor(m.pos[1] + m.h); y < WY; y++) if (BL[getB(Math.floor(m.pos[0]), y, Math.floor(m.pos[2]))].opaque) return false;
+  return true;
+}
+
+function updateMobs(dt) {
+  for (var i = mobs.length - 1; i >= 0; i--) {
+    var m = mobs[i];
+    m.hurtT -= dt;
+    if (m.type === 'dragon') { updateDragon(m, dt); continue; }
+    var speed = 0, dir = null;
+    if (m.type === 'zombie') {
+      var t = nearestPlayer(m.pos, 28);
+      if (t) {
+        var dx = t.p.pos[0] - m.pos[0], dz = t.p.pos[2] - m.pos[2];
+        m.yaw = Math.atan2(dx, -dz); speed = 2.4;
+        m.attackT -= dt;
+        if (t.d < 1.4 && m.attackT <= 0) {
+          var l = Math.hypot(dx, dz) || 1;
+          damagePlayerId(t.p.id, 3, dx / l, dz / l, 'was defeated by a zombie');
+          m.attackT = 1;
+        }
+      } else wander(m, dt);
+      if (!isNight() && sunExposed(m)) {
+        m.burn += dt;
+        if (m.burn > 1) { m.burn = 0; m.hp -= 2; m.hurtT = 0.2; if (m.hp <= 0) { mobs.splice(i, 1); continue; } }
+      }
+      if (!t && m.moving) speed = 1;
+    } else {
+      if (m.fleeT > 0) { m.fleeT -= dt; speed = 3.2; if (Math.random() < dt * 2) m.yaw += (Math.random() - 0.5) * 2; }
+      else { wander(m, dt); speed = m.moving ? 1.1 : 0; }
+    }
+    var fx = Math.sin(m.yaw), fz = -Math.cos(m.yaw);
+    var acc = m.kbT > 0 ? 0.5 : 10;
+    m.kbT -= dt;
+    m.vel[0] += (fx * speed - m.vel[0]) * Math.min(1, acc * dt);
+    m.vel[2] += (fz * speed - m.vel[2]) * Math.min(1, acc * dt);
+    if (inWaterAt(m)) { m.vel[1] = Math.min(m.vel[1] + 30 * dt, 2.5); }
+    else m.vel[1] = Math.max(m.vel[1] - 28 * dt, -40);
+    var ox = m.pos[0], oz = m.pos[2];
+    moveEntity(m, dt);
+    if (m.hitWall && m.onGround && speed > 0) m.vel[1] = 8.4;
+    var moved = Math.hypot(m.pos[0] - ox, m.pos[2] - oz);
+    m.walk += moved * 4; m.moveAmt = moved / dt / 2;
+    if (playersForAI().every(function (p) { return Math.hypot(p.pos[0] - m.pos[0], p.pos[2] - m.pos[2]) > 80; })) mobs.splice(i, 1);
+  }
+}
+function wander(m, dt) {
+  m.wanderT -= dt;
+  if (m.wanderT <= 0) { m.wanderT = 2 + Math.random() * 4; m.moving = Math.random() < 0.6; m.yaw = Math.random() * Math.PI * 2; }
+}
+function steer(d, tgt, speed, dt) {
+  var dx = tgt[0] - d.pos[0], dy = tgt[1] - d.pos[1], dz = tgt[2] - d.pos[2];
+  var l = Math.hypot(dx, dy, dz) || 1, k = Math.min(1, 2.2 * dt);
+  d.vel[0] += (dx / l * speed - d.vel[0]) * k;
+  d.vel[1] += (dy / l * speed - d.vel[1]) * k;
+  d.vel[2] += (dz / l * speed - d.vel[2]) * k;
+  d.pos[0] += d.vel[0] * dt; d.pos[1] += d.vel[1] * dt; d.pos[2] += d.vel[2] * dt;
+  if (Math.hypot(d.vel[0], d.vel[2]) > 0.5) d.yaw = Math.atan2(d.vel[0], -d.vel[2]);
+  return l;
+}
+function updateDragon(d, dt) {
+  d.t += dt;
+  var h = d.home, tgt;
+  if (d.state === 'circle') {
+    d.ang += dt * 0.45;
+    steer(d, [h[0] + Math.cos(d.ang) * 18, h[1] + 14, h[2] + Math.sin(d.ang) * 18], 10, dt);
+    if (d.t > 9) {
+      d.t = 0;
+      var near = nearestPlayer(d.pos, 70);
+      d.state = d.cycle++ % 2 === 0 && near ? 'swoop' : 'perch';
+      d.prey = near ? near.p.id : null;
+    }
+  } else if (d.state === 'swoop') {
+    var prey = playersForAI().filter(function (p) { return p.id === d.prey && p.alive; })[0];
+    if (!prey || d.t > 6) { d.state = 'rise'; d.t = 0; return; }
+    tgt = [prey.pos[0], prey.pos[1] + 0.8, prey.pos[2]];
+    var dist = steer(d, tgt, 14, dt);
+    if (dist < 2.6) {
+      var dx = prey.pos[0] - d.pos[0], dz = prey.pos[2] - d.pos[2], l = Math.hypot(dx, dz) || 1;
+      damagePlayerId(prey.id, 6, dx / l, dz / l, 'was defeated by the Sky Dragon');
+      d.state = 'rise'; d.t = 0;
+    }
+  } else if (d.state === 'rise') {
+    steer(d, [h[0] + Math.cos(d.ang) * 18, h[1] + 16, h[2] + Math.sin(d.ang) * 18], 11, dt);
+    if (d.t > 3) { d.state = 'circle'; d.t = 0; }
+  } else if (d.state === 'perch') {
+    var spot = [h[0], topY(Math.floor(h[0]), Math.floor(h[2] + 4)), h[2] + 4];
+    var dd = steer(d, spot, d.t < 6 ? 9 : 3, dt);
+    if (dd < 1) { d.vel = [0, 0, 0]; d.pos = spot.slice(); }
+    d.biteT -= dt;
+    var close = nearestPlayer(d.pos, 3.5);
+    if (close && d.biteT <= 0 && dd < 2) {
+      var bx = close.p.pos[0] - d.pos[0], bz = close.p.pos[2] - d.pos[2], bl = Math.hypot(bx, bz) || 1;
+      damagePlayerId(close.p.id, 4, bx / bl, bz / bl, 'was defeated by the Sky Dragon');
+      d.biteT = 1.5;
+    }
+    if (d.t > 14) { d.state = 'rise'; d.t = 0; }
+  }
+}
+
+var spawnT = 0;
+function spawnMobs(dt) {
+  spawnT -= dt;
+  if (spawnT > 0) return;
+  spawnT = 1;
+  var zombies = mobs.filter(function (m) { return m.type === 'zombie'; }).length;
+  var pigs = mobs.filter(function (m) { return m.type === 'pig'; }).length;
+  var ps = playersForAI().concat([{ pos: player.pos }]);
+  var p = ps[Math.floor(Math.random() * ps.length)].pos;
+  var type = isNight() && zombies < 8 ? 'zombie' : (pigs < 8 && Math.random() < 0.3 ? 'pig' : null);
+  if (!type) return;
+  var a = Math.random() * Math.PI * 2, r = 18 + Math.random() * 14;
+  var x = Math.floor(p[0] + Math.cos(a) * r), z = Math.floor(p[2] + Math.sin(a) * r);
+  if (x < 1 || z < 1 || x >= WX - 1 || z >= WZ - 1) return;
+  var y = topY(x, z), below = getB(x, y - 1, z);
+  if (y >= WY - 2 || getB(x, y, z) || (below !== B.GRASS && below !== B.DIRT && below !== B.SAND && below !== B.STONE)) return;
+  if (type === 'pig' && below !== B.GRASS) return;
+  makeMob(type, x + 0.5, y, z + 0.5);
+}
+
+/* ================= Multiplayer (direct peer-to-peer, no server) ================= */
+var ICE = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+var net = { role: 'solo', peers: [], host: null, myId: 'h', nextId: 1, pending: null, tick: 0 };
+function netSend(peer, m) { if (peer && peer.ch && peer.ch.readyState === 'open') peer.ch.send(JSON.stringify(m)); }
+function sendAll(m, except) { var s = JSON.stringify(m); net.peers.forEach(function (p) { if (p !== except && p.ch && p.ch.readyState === 'open') p.ch.send(s); }); }
+function peerById(id) { return net.peers.filter(function (p) { return p.id === id; })[0]; }
+function broadcastChat(name, text) { msg(name ? name + ': ' + text : text); sendAll({ t: 'chat', name: name, text: text }); }
+
+function b64(u8) { var s = ''; for (var i = 0; i < u8.length; i++) s += String.fromCharCode(u8[i]); return btoa(s); }
+function encode(obj) {
+  var s = JSON.stringify(obj);
+  if (window.CompressionStream) {
+    var cs = new Blob([s]).stream().pipeThrough(new CompressionStream('deflate-raw'));
+    return new Response(cs).arrayBuffer().then(function (buf) { return 'BC1' + b64(new Uint8Array(buf)); });
+  }
+  return Promise.resolve('BC0' + btoa(unescape(encodeURIComponent(s))));
+}
+function decode(code) {
+  code = (code || '').replace(/\s+/g, '');
+  var tag = code.slice(0, 3), body = code.slice(3);
+  try {
+    if (tag === 'BC1') {
+      var bin = atob(body), u8 = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+      var ds = new Blob([u8]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+      return new Response(ds).text().then(JSON.parse);
+    }
+    if (tag === 'BC0') return Promise.resolve(JSON.parse(decodeURIComponent(escape(atob(body)))));
+  } catch (e) { /* fall through */ }
+  return Promise.reject(new Error("That doesn't look like a BlockCraft code. Copy the whole thing and try again."));
+}
+function waitIce(pc) {
+  return new Promise(function (res) {
+    if (pc.iceGatheringState === 'complete') return res();
+    pc.addEventListener('icegatheringstatechange', function () { if (pc.iceGatheringState === 'complete') res(); });
+    setTimeout(res, 4000);
+  });
+}
+function setupChannel(peer) {
+  peer.ch.onopen = function () {
+    if (net.role === 'guest') {
+      $('joinStatus').textContent = 'Connected! Loading the world…';
+      netSend(peer, { t: 'hello', name: game.name });
+    } else {
+      $('hostStatus').textContent = 'Connected!';
+    }
+  };
+  peer.ch.onmessage = function (e) { var m; try { m = JSON.parse(e.data); } catch (err) { return; } handleMsg(peer, m); };
+  peer.ch.onclose = function () {
+    if (net.role === 'guest') {
+      msg('Lost connection to the host.');
+      if (game.running) { game.running = false; showTitle('The host left or the connection dropped.'); }
+    } else {
+      var i = net.peers.indexOf(peer);
+      if (i !== -1) net.peers.splice(i, 1);
+      if (others[peer.id]) broadcastChat('', others[peer.id].name + ' left the game.');
+      delete others[peer.id];
+    }
+  };
+}
+function hostInvite() {
+  if (!window.RTCPeerConnection) return Promise.reject(new Error('This browser does not support direct connections.'));
+  var pc = new RTCPeerConnection(ICE);
+  var peer = { pc: pc, ch: pc.createDataChannel('bc'), id: 'g' + (net.nextId++), name: 'Friend' };
+  setupChannel(peer);
+  net.pending = peer;
+  return pc.createOffer().then(function (o) { return pc.setLocalDescription(o); })
+    .then(function () { return waitIce(pc); })
+    .then(function () { return encode({ t: 'offer', sdp: pc.localDescription.sdp }); });
+}
+function hostAccept(code) {
+  var peer = net.pending;
+  if (!peer) return Promise.reject(new Error('Make an invite code first.'));
+  return decode(code).then(function (d) {
+    if (d.t !== 'answer') throw new Error('That is an invite code. Paste the reply code your friend sends back.');
+    return peer.pc.setRemoteDescription({ type: 'answer', sdp: d.sdp });
+  }).then(function () {
+    net.pending = null;
+    if (net.peers.indexOf(peer) === -1) net.peers.push(peer);
+    if (net.role === 'solo') net.role = 'host';
+    peer.pc.addEventListener('connectionstatechange', function () {
+      if (peer.pc.connectionState === 'failed') $('hostStatus').textContent = "Couldn't connect. The school network may block direct connections between computers.";
+    });
+  });
+}
+function guestJoin(code) {
+  if (!window.RTCPeerConnection) return Promise.reject(new Error('This browser does not support direct connections.'));
+  var pc = new RTCPeerConnection(ICE);
+  var peer = { pc: pc, id: 'h' };
+  pc.ondatachannel = function (e) { peer.ch = e.channel; setupChannel(peer); };
+  pc.addEventListener('connectionstatechange', function () {
+    if (pc.connectionState === 'failed') $('joinStatus').textContent = "Couldn't connect. The school network may block direct connections between computers.";
+  });
+  return decode(code).then(function (d) {
+    if (d.t !== 'offer') throw new Error('That is a reply code. Paste the invite code from your friend.');
+    return pc.setRemoteDescription({ type: 'offer', sdp: d.sdp });
+  }).then(function () { return pc.createAnswer(); })
+    .then(function (a) { return pc.setLocalDescription(a); })
+    .then(function () { return waitIce(pc); })
+    .then(function () {
+      net.role = 'guest'; net.host = peer; net.peers = [peer];
+      return encode({ t: 'answer', sdp: pc.localDescription.sdp });
+    });
+}
+
+function handleMsg(peer, m) {
+  if (net.role !== 'guest') {
+    // ---- host side ----
+    if (m.t === 'hello') {
+      peer.name = String(m.name || 'Friend').slice(0, 16);
+      others[peer.id] = { name: peer.name, pos: spawn.slice(), target: spawn.slice(), yaw: 0, pitch: 0, w: 0.6, h: 1.8, dead: false, hurtT: 0, walk: 0 };
+      netSend(peer, { t: 'init', seed: game.seed, mode: game.mode, time: game.time, pvp: game.pvp, you: peer.id, spawn: spawn });
+      var list = Array.from(edits.entries());
+      for (var i = 0; i < list.length; i += 3000) netSend(peer, { t: 'ed', l: list.slice(i, i + 3000) });
+      netSend(peer, { t: 'start' });
+      broadcastChat('', peer.name + ' joined the game.');
+    } else if (m.t === 'p') {
+      var o = others[peer.id]; if (!o) return;
+      o.target = [m.x, m.y, m.z]; o.yaw = m.yaw; o.pitch = m.pitch; o.dead = !!m.dead;
+    } else if (m.t === 'e') {
+      var x = m.i % WX, z = Math.floor(m.i / WX) % WZ, y = Math.floor(m.i / (WX * WZ));
+      setBlock(x, y, z, m.b, true);
+      sendAll(m, peer);
+    } else if (m.t === 'hit') {
+      var parts = String(m.target).split(':');
+      if (parts[0] === 'm') {
+        var mob = mobs.filter(function (q) { return String(q.id) === parts[1]; })[0];
+        if (mob) hurtMob(mob, m.dmg, m.kx, m.kz, peer.id);
+      } else if (parts[0] === 'p') {
+        hitPlayerId(parts[1], m.dmg, m.kx, m.kz, peer.name);
+      }
+    } else if (m.t === 'chat') {
+      var name = m.name ? peer.name : '';
+      msg(name ? name + ': ' + m.text : m.text);
+      sendAll({ t: 'chat', name: name, text: m.text }, peer);
+    }
+    return;
+  }
+  // ---- guest side ----
+  if (m.t === 'init') {
+    game.seed = m.seed; game.mode = m.mode; game.time = m.time; game.pvp = m.pvp; net.myId = m.you;
+    generate(m.seed);
+    spawn = m.spawn;
+  } else if (m.t === 'ed') {
+    m.l.forEach(function (e) { world[e[0]] = e[1]; edits.set(e[0], e[1]); });
+  } else if (m.t === 'start') {
+    hide('join');
+    startGame(false);
+    msg('Joined the game. Have fun!');
+  } else if (m.t === 'e') {
+    var gx = m.i % WX, gz = Math.floor(m.i / WX) % WZ, gy = Math.floor(m.i / (WX * WZ));
+    setBlock(gx, gy, gz, m.b, true);
+  } else if (m.t === 'ps') {
+    var seen = {};
+    m.l.forEach(function (p) {
+      if (p.id === net.myId) return;
+      seen[p.id] = 1;
+      var o = others[p.id] || (others[p.id] = { name: p.name, pos: [p.x, p.y, p.z], w: 0.6, h: 1.8, hurtT: 0, walk: 0 });
+      o.name = p.name; o.target = [p.x, p.y, p.z]; o.yaw = p.yaw; o.pitch = p.pitch; o.dead = p.dead;
+    });
+    Object.keys(others).forEach(function (k) { if (!seen[k]) delete others[k]; });
+  } else if (m.t === 'm') {
+    game.time = m.time; game.pvp = m.pvp;
+    var byId = {};
+    mobs.forEach(function (q) { byId[q.id] = q; });
+    mobs = m.l.map(function (q) {
+      var e = byId[q.id] || { id: q.id, type: q.type, pos: [q.x, q.y, q.z], hurtT: 0, walk: 0 };
+      e.target = [q.x, q.y, q.z]; e.yaw = q.yaw; e.hp = q.hp; e.maxHp = q.mx;
+      e.w = q.type === 'dragon' ? 3 : q.type === 'pig' ? 0.8 : 0.6;
+      e.h = q.type === 'dragon' ? 1.6 : q.type === 'pig' ? 0.9 : 1.9;
+      if (q.hu) e.hurtT = 0.3;
+      return e;
+    });
+  } else if (m.t === 'dmg') {
+    hurtPlayer(m.dmg, m.kx, m.kz, m.cause);
+  } else if (m.t === 'give') {
+    addItem(m.id, m.n);
+  } else if (m.t === 'chat') {
+    msg(m.name ? m.name + ': ' + m.text : m.text);
+  } else if (m.t === 'win') {
+    game.dragonDead = true;
+    showWin(m.by);
+  }
+}
+function r2(v) { return Math.round(v * 100) / 100; }
+function netTick(dt) {
+  net.tick -= dt;
+  if (net.tick > 0) return;
+  net.tick = 1 / 15;
+  if (net.role === 'guest') {
+    netSend(net.host, { t: 'p', x: r2(player.pos[0]), y: r2(player.pos[1]), z: r2(player.pos[2]), yaw: r2(player.yaw), pitch: r2(player.pitch), dead: player.dead });
+  } else if (net.peers.length) {
+    var l = [{ id: 'h', name: game.name, x: r2(player.pos[0]), y: r2(player.pos[1]), z: r2(player.pos[2]), yaw: r2(player.yaw), pitch: r2(player.pitch), dead: player.dead }];
+    Object.keys(others).forEach(function (k) { var o = others[k]; l.push({ id: k, name: o.name, x: r2(o.pos[0]), y: r2(o.pos[1]), z: r2(o.pos[2]), yaw: o.yaw, pitch: o.pitch, dead: o.dead }); });
+    sendAll({ t: 'ps', l: l });
+    sendAll({ t: 'm', time: game.time, pvp: game.pvp, l: mobs.map(function (q) {
+      return { id: q.id, type: q.type, x: r2(q.pos[0]), y: r2(q.pos[1]), z: r2(q.pos[2]), yaw: r2(q.yaw), hp: Math.ceil(q.hp), mx: q.maxHp, hu: q.hurtT > 0 ? 1 : 0 };
+    }) });
+  }
+}
+function smoothRemote(dt) {
+  var k = Math.min(1, dt * 12);
+  function lerp(e) {
+    if (!e.target) return;
+    var ox = e.pos[0], oz = e.pos[2];
+    for (var i = 0; i < 3; i++) e.pos[i] += (e.target[i] - e.pos[i]) * k;
+    var moved = Math.hypot(e.pos[0] - ox, e.pos[2] - oz);
+    e.walk = (e.walk || 0) + moved * 4; e.moveAmt = moved / dt / 2;
+    e.hurtT -= dt;
+  }
+  Object.keys(others).forEach(function (id) { lerp(others[id]); });
+  if (net.role === 'guest') mobs.forEach(lerp);
+}
+
+/* ================= Save / load ================= */
+var SAVE = 'blockcraft-save';
+function saveGame() {
+  if (net.role === 'guest' || !game.running) return;
+  var ok = store(SAVE, { v: 1, seed: game.seed, mode: game.mode, time: game.time, edits: Array.from(edits.entries()), inv: inv, sel: sel,
+    pos: player.pos, hp: player.hp, dragonDead: game.dragonDead, playTime: game.playTime, pvp: game.pvp });
+  if (!ok) msg("Couldn't save — this browser is blocking storage.");
+}
+
+/* ================= Main loop ================= */
+var proj, lastT = 0, saveT = 30;
+function resize() {
+  var dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+  canvas.width = Math.floor(innerWidth * dpr);
+  canvas.height = Math.floor(innerHeight * dpr);
+  if (gl) gl.viewport(0, 0, canvas.width, canvas.height);
+  proj = perspective(70 * Math.PI / 180, canvas.width / canvas.height, 0.05, 300);
+}
+window.addEventListener('resize', resize);
+
+function update(dt) {
+  if (net.role !== 'guest') game.time = (game.time + dt / game.dayLen) % 1;
+  game.playTime += dt;
+  if (!player.dead) { updatePlayer(dt); updateInteraction(dt); }
+  if (net.role !== 'guest') { updateMobs(dt); spawnMobs(dt); }
+  smoothRemote(dt);
+  netTick(dt);
+  saveT -= dt;
+  if (saveT <= 0) { saveT = 30; saveGame(); }
+}
+
+function render() {
+  var light = daylight();
+  var e = eye();
+  var underwater = BL[getB(Math.floor(e[0]), Math.floor(e[1]), Math.floor(e[2]))].water;
+  var day = [0.56, 0.77, 1.0], night = [0.03, 0.05, 0.13], k = (light - 0.22) / 0.78;
+  var sky = underwater ? [0.08, 0.2, 0.5] : [night[0] + (day[0] - night[0]) * k, night[1] + (day[1] - night[1]) * k, night[2] + (day[2] - night[2]) * k];
+  $('water').classList.toggle('hidden', !underwater);
+  gl.clearColor(sky[0], sky[1], sky[2], 1);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  var mvp = mul(proj, viewMatrix(e, player.yaw, player.pitch));
+  gl.uniformMatrix4fv(loc.uMVP, false, mvp);
+  gl.uniform3fv(loc.uCam, e);
+  gl.uniform3fv(loc.uFog, sky);
+  gl.uniform1f(loc.uFogFar, underwater ? 14 : 80);
+  gl.uniform1f(loc.uLight, light);
+  gl.uniform1f(loc.uAlpha, 1);
+
+  var rebuilt = 0;
+  chunks.forEach(function (c) { if (c.dirty && rebuilt < 6) { buildChunk(c); rebuilt++; } });
+  gl.disable(gl.BLEND);
+  chunks.forEach(function (c) { if (!c.opN) return; gl.bindBuffer(gl.ARRAY_BUFFER, c.op); attribs(); gl.drawArrays(gl.TRIANGLES, 0, c.opN); });
+
+  // entities
+  var a = [];
+  mobs.forEach(function (m) {
+    if (m.type === 'zombie') drawHumanoid(a, m, hexCol('#2f8f8f'), hexCol('#3b3b9a'), hexCol('#5a9a4a'), true);
+    else if (m.type === 'pig') drawPig(a, m);
+    else if (m.type === 'dragon') drawDragon(a, m);
+  });
+  Object.keys(others).forEach(function (id) {
+    var o = others[id]; if (o.dead) return;
+    var c = playerColors(o.name);
+    drawHumanoid(a, o, c.shirt, c.pants, SKIN, false);
+  });
+  if (a.length) {
+    gl.bindBuffer(gl.ARRAY_BUFFER, entBuf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(a), gl.DYNAMIC_DRAW);
+    attribs();
+    gl.drawArrays(gl.TRIANGLES, 0, a.length / 8);
+  }
+
+  // outline of the block you're looking at
+  if (target && !entTarget) {
+    var l = [], x = target.x, y = target.y, z = target.z, s = 0.002;
+    var P = [[x - s, y - s, z - s], [x + 1 + s, y - s, z - s], [x + 1 + s, y - s, z + 1 + s], [x - s, y - s, z + 1 + s],
+      [x - s, y + 1 + s, z - s], [x + 1 + s, y + 1 + s, z - s], [x + 1 + s, y + 1 + s, z + 1 + s], [x - s, y + 1 + s, z + 1 + s]];
+    [[0, 1], [1, 2], [2, 3], [3, 0], [4, 5], [5, 6], [6, 7], [7, 4], [0, 4], [1, 5], [2, 6], [3, 7]].forEach(function (ed) {
+      [P[ed[0]], P[ed[1]]].forEach(function (p) { l.push(p[0], p[1], p[2], WHITE_UV[0], WHITE_UV[1], 0.05, 0.05, 0.05); });
+    });
+    gl.bindBuffer(gl.ARRAY_BUFFER, lineBuf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(l), gl.DYNAMIC_DRAW);
+    attribs();
+    gl.uniform1f(loc.uLight, 1);
+    gl.drawArrays(gl.LINES, 0, l.length / 8);
+    gl.uniform1f(loc.uLight, light);
+  }
+
+  // water last, see-through
+  gl.enable(gl.BLEND);
+  gl.depthMask(false);
+  chunks.forEach(function (c) { if (!c.waN) return; gl.bindBuffer(gl.ARRAY_BUFFER, c.wa); attribs(); gl.drawArrays(gl.TRIANGLES, 0, c.waN); });
+  gl.depthMask(true);
+
+  renderOverlay(mvp);
+}
+
+var tagsEl = $('tags');
+function renderOverlay(mvp) {
+  // name tags
+  var html = '';
+  Object.keys(others).forEach(function (id) {
+    var o = others[id]; if (o.dead) return;
+    var p = [o.pos[0], o.pos[1] + 2.25, o.pos[2]];
+    var cx = mvp[0] * p[0] + mvp[4] * p[1] + mvp[8] * p[2] + mvp[12];
+    var cy = mvp[1] * p[0] + mvp[5] * p[1] + mvp[9] * p[2] + mvp[13];
+    var cw = mvp[3] * p[0] + mvp[7] * p[1] + mvp[11] * p[2] + mvp[15];
+    if (cw <= 0.1) return;
+    var sx = (cx / cw * 0.5 + 0.5) * innerWidth, sy = (1 - (cy / cw * 0.5 + 0.5)) * innerHeight;
+    var safe = String(o.name).replace(/[&<>"]/g, function (ch) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]; });
+    html += '<span style="left:' + sx.toFixed(0) + 'px;top:' + sy.toFixed(0) + 'px">' + safe + '</span>';
+  });
+  tagsEl.innerHTML = html;
+  // boss bar
+  var dragon = mobs.filter(function (m) { return m.type === 'dragon'; })[0];
+  $('boss').classList.toggle('hidden', !dragon);
+  if (dragon) $('boss').querySelector('i').style.width = clamp(dragon.hp / (dragon.maxHp || 200), 0, 1) * 100 + '%';
+  // debug
+  if (debugOn) {
+    var hours = Math.floor(((game.time + 0.25) % 1) * 24);
+    $('debug').textContent = 'XYZ: ' + player.pos.map(function (v) { return v.toFixed(1); }).join(' / ') +
+      '\nTime: ' + hours + ':00 ' + (isNight() ? '(night)' : '(day)') + '\nMobs: ' + mobs.length + '  Players: ' + (Object.keys(others).length + 1) +
+      '\nMode: ' + game.mode + (net.role !== 'solo' ? '  (' + net.role + ')' : '');
+  }
+  $('clickhint').classList.toggle('hidden', locked || anyScreen() || !game.running);
+}
+
+function frame(t) {
+  requestAnimationFrame(frame);
+  var dt = Math.min(0.05, (t - lastT) / 1000 || 0);
+  lastT = t;
+  if (!game.running) return;
+  var frozen = net.role === 'solo' && (anyScreen() || !locked);
+  if (!frozen) update(dt);
+  render();
+}
+
+/* ================= Starting / UI wiring ================= */
+function resetPlayer(pos) {
+  player.pos = pos.slice(); player.vel = [0, 0, 0]; player.hp = 20; player.dead = false; player.fall = 0; player.flying = false;
+  player.yaw = 0; player.pitch = 0;
+}
+function startGame(fresh, saved) {
+  mobs = []; others = others || {};
+  chunks.forEach(function (c) { c.dirty = true; });
+  if (saved) {
+    resetPlayer(saved.pos || spawn);
+    player.hp = saved.hp || 20;
+    inv = (saved.inv || []).slice(0, 36); while (inv.length < 36) inv.push(null);
+    sel = saved.sel || 0;
+  } else {
+    resetPlayer(spawn);
+    if (fresh) inv = new Array(36).fill(null);
+  }
+  if (creative() && (fresh || net.role === 'guest') && !saved) {
+    [B.GRASS, B.STONE, B.PLANKS, B.LOG, B.GLASS, B.COBBLE, B.SAND, 130, B.ALTAR].forEach(function (id, i) { inv[i] = { id: id, n: IT[id].stack }; });
+  }
+  if (net.role !== 'guest' && !saved) {
+    for (var i = 0; i < 10; i++) {
+      var x = 4 + Math.floor(Math.random() * (WX - 8)), z = 4 + Math.floor(Math.random() * (WZ - 8)), y = topY(x, z);
+      if (getB(x, y - 1, z) === B.GRASS) makeMob('pig', x + 0.5, y, z + 0.5);
+    }
+  }
+  game.running = true;
+  hide('title');
+  show('hud');
+  renderHotbar();
+  renderHearts();
+  $('pvpWrap').classList.toggle('hidden', net.role === 'guest');
+  lock();
+}
+function showTitle(note) {
+  ['pause', 'inv', 'host', 'join', 'dead', 'win'].forEach(hide);
+  hide('hud');
+  unlock();
+  show('title');
+  $('continue').classList.toggle('hidden', !load(SAVE, null));
+  if (note) alert(note);
+}
+function newWorld() {
+  var seedText = $('seed').value.trim();
+  game.seed = seedText ? (/^-?\d+$/.test(seedText) ? Number(seedText) | 0 : hashStr(seedText) | 0) : (Math.random() * 2147483647) | 0;
+  game.mode = $('mode').value;
+  game.time = 0.05; game.dragonDead = false; game.playTime = 0;
+  game.name = $('name').value.trim() || game.name;
+  store('blockcraft-name', game.name);
+  net.role = 'solo'; net.peers = []; others = {};
+  generate(game.seed);
+  startGame(true);
+  msg('World seed: ' + game.seed + '. Punch a tree to get started!');
+}
+function continueWorld() {
+  var s = load(SAVE, null);
+  if (!s) return;
+  game.seed = s.seed; game.mode = s.mode; game.time = s.time || 0.05; game.dragonDead = !!s.dragonDead; game.playTime = s.playTime || 0;
+  game.pvp = s.pvp !== false;
+  game.name = $('name').value.trim() || game.name;
+  net.role = 'solo'; net.peers = []; others = {};
+  generate(game.seed);
+  (s.edits || []).forEach(function (e) { world[e[0]] = e[1]; edits.set(e[0], e[1]); });
+  startGame(false, s);
+  msg('Welcome back!');
+}
+function showWin(by) {
+  var mins = Math.max(1, Math.round(game.playTime / 60));
+  $('winMsg').textContent = (by && by !== game.name ? by + ' landed the final blow on' : 'You defeated') +
+    ' the Sky Dragon! Time played: about ' + mins + ' minute' + (mins === 1 ? '' : 's') + '. The world is yours to keep building in.';
+  openScreen('win');
+}
+
+/* ---------- inventory screen ---------- */
+var invPick = -1;
+function openInv() { invPick = -1; renderInv(); openScreen('inv'); }
+function renderInv() {
+  var pal = $('palette');
+  if (creative()) {
+    pal.classList.remove('hidden');
+    pal.innerHTML = ITEM_ORDER.map(function (id) {
+      return '<button type="button" class="slot" data-give="' + id + '" title="' + IT[id].name + '" aria-label="' + IT[id].name + '"><img alt="" src="' + iconURL(id) + '"></button>';
+    }).join('');
+    $('invhint').textContent = 'Creative: click any item above to put it in your selected hotbar slot. Click two of your slots to swap them.';
+  } else {
+    pal.classList.add('hidden');
+    $('invhint').textContent = 'Click two slots to swap them. The top row is your hotbar.';
+  }
+  var g = '';
+  for (var i = 0; i < 36; i++) {
+    var s = inv[i];
+    g += '<button type="button" class="slot' + (i === invPick ? ' pick' : i === sel ? ' sel' : '') + '" data-slot="' + i + '" aria-label="' +
+      (s ? IT[s.id].name + ' ×' + s.n : 'Empty slot') + '" title="' + (s ? IT[s.id].name : '') + '">' + slotHTML(s) + '</button>';
+  }
+  $('invgrid').innerHTML = g;
+  var table = nearBlock(B.TABLE), furnace = nearBlock(B.FURNACE);
+  $('stations').textContent = 'Nearby: ' + (table ? 'Crafting Table ✓' : 'no Crafting Table') + ' · ' + (furnace ? 'Furnace ✓' : 'no Furnace') +
+    '. Stand within 4 blocks of one to use its recipes.';
+  if (creative()) { $('recipes').innerHTML = '<p>In Creative you can take any item from the palette.</p>'; return; }
+  $('recipes').innerHTML = RECIPES.map(function (r, ri) {
+    var have = Object.keys(r.need).every(function (id) { return countItem(Number(id)) >= r.need[id]; });
+    var station = !r.at || (r.at === B.TABLE ? table : furnace);
+    var needs = Object.keys(r.need).map(function (id) { return r.need[id] + ' ' + IT[id].name; }).join(', ');
+    if (r.at) needs += ' · at ' + IT[r.at].name;
+    return '<div class="recipe"><img alt="" src="' + iconURL(r.out) + '"><div class="need"><strong>' + IT[r.out].name + (r.n > 1 ? ' ×' + r.n : '') + '</strong>' + needs +
+      '</div><button type="button" data-craft="' + ri + '"' + (have && station ? '' : ' disabled') + '>Craft</button></div>';
+  }).join('');
+}
+$('inv').addEventListener('click', function (e) {
+  var b = e.target.closest('button');
+  if (!b) return;
+  if (b.dataset.give) {
+    var id = Number(b.dataset.give);
+    inv[sel] = { id: id, n: IT[id].stack };
+    renderHotbar(); renderInv();
+  } else if (b.dataset.slot) {
+    var i = Number(b.dataset.slot);
+    if (invPick < 0) { invPick = i; }
+    else {
+      var a = inv[invPick], c = inv[i];
+      if (a && c && a.id === c.id && invPick !== i && c.n < IT[c.id].stack) {
+        var k = Math.min(a.n, IT[c.id].stack - c.n); c.n += k; a.n -= k; if (!a.n) inv[invPick] = null;
+      } else { inv[invPick] = c; inv[i] = a; }
+      invPick = -1;
+      renderHotbar();
+    }
+    renderInv();
+  } else if (b.dataset.craft) {
+    var r = RECIPES[Number(b.dataset.craft)];
+    Object.keys(r.need).forEach(function (id) { removeItem(Number(id), r.need[id]); });
+    var left = addItem(r.out, r.n);
+    if (left) msg('Your inventory is full.');
+    renderInv();
+  }
+});
+$('invClose').addEventListener('click', function () { closeScreen('inv'); });
+
+/* ---------- input ---------- */
+document.addEventListener('pointerlockchange', function () {
+  locked = document.pointerLockElement === canvas;
+  if (!locked) { keys = {}; mouse.left = mouse.right = false; }
+  if (!locked && game.running && !anyScreen() && $('chat').classList.contains('hidden')) {
+    $('pauseInfo').textContent = net.role === 'solo' ? 'The world is paused.' :
+      'Multiplayer keeps running while this menu is open. Players online: ' + (Object.keys(others).length + 1) + '.';
+    $('pvp').checked = game.pvp;
+    show('pause');
+  }
+});
+document.addEventListener('mousemove', function (e) {
+  if (!locked) return;
+  player.yaw += e.movementX * 0.0025;
+  player.pitch = clamp(player.pitch - e.movementY * 0.0025, -1.55, 1.55);
+});
+canvas.addEventListener('mousedown', function (e) {
+  if (!game.running || anyScreen()) return;
+  if (!locked) { lock(); return; }
+  if (e.button === 0) { mouse.left = true; player.attackT = Math.min(player.attackT, 0); }
+  if (e.button === 2) { mouse.right = true; player.useT = 0; }
+});
+document.addEventListener('mouseup', function (e) {
+  if (e.button === 0) mouse.left = false;
+  if (e.button === 2) mouse.right = false;
+});
+canvas.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+document.addEventListener('wheel', function (e) {
+  if (!locked) return;
+  sel = (sel + (e.deltaY > 0 ? 1 : 8)) % 9;
+  renderHotbar();
+}, { passive: true });
+
+var chatEl = $('chat');
+document.addEventListener('keydown', function (e) {
+  if (!game.running) return;
+  if (document.activeElement === chatEl) {
+    if (e.key === 'Enter') {
+      var text = chatEl.value.trim();
+      if (text) {
+        if (net.role === 'guest') { netSend(net.host, { t: 'chat', name: game.name, text: text }); msg(game.name + ': ' + text); }
+        else broadcastChat(game.name, text);
+      }
+      chatEl.value = ''; chatEl.classList.add('hidden'); chatEl.blur(); lock();
+    } else if (e.key === 'Escape') { chatEl.value = ''; chatEl.classList.add('hidden'); chatEl.blur(); }
+    return;
+  }
+  if (e.code === 'KeyE' && !$('inv').classList.contains('hidden')) { e.preventDefault(); closeScreen('inv'); return; }
+  if (!$('pause').classList.contains('hidden') && e.key === 'Escape') { hide('pause'); lock(); return; }
+  if (anyScreen()) return;
+  if (['Space', 'ArrowUp', 'ArrowDown', 'F3', 'Tab'].indexOf(e.code) !== -1) e.preventDefault();
+  if (e.code === 'Space' && !e.repeat && creative()) {
+    var now = performance.now();
+    if (now - lastSpace < 300) { player.flying = !player.flying; player.vel[1] = 0; }
+    lastSpace = now;
+  }
+  keys[e.code] = true;
+  if (e.code === 'KeyE') { e.preventDefault(); openInv(); }
+  else if (/^Digit[1-9]$/.test(e.code)) { sel = Number(e.code.slice(5)) - 1; renderHotbar(); }
+  else if (e.code === 'KeyF' && creative()) { player.flying = !player.flying; player.vel[1] = 0; msg(player.flying ? 'Flying' : 'Stopped flying'); }
+  else if (e.code === 'F3') { debugOn = !debugOn; $('debug').classList.toggle('hidden', !debugOn); }
+  else if (e.code === 'KeyT' && net.role !== 'solo') {
+    e.preventDefault();
+    keys = {};
+    chatEl.classList.remove('hidden');
+    chatEl.focus();
+  }
+});
+document.addEventListener('keyup', function (e) { keys[e.code] = false; });
+window.addEventListener('blur', function () { keys = {}; mouse.left = mouse.right = false; });
+
+$('play').addEventListener('click', newWorld);
+$('continue').addEventListener('click', continueWorld);
+$('resume').addEventListener('click', function () { closeScreen('pause'); });
+$('quit').addEventListener('click', function () {
+  saveGame();
+  game.running = false;
+  if (net.role === 'guest' && net.host) net.host.pc.close();
+  net.peers.forEach(function (p) { p.pc.close(); });
+  net.peers = []; net.role = 'solo'; others = {};
+  showTitle();
+});
+$('pvp').addEventListener('change', function () {
+  game.pvp = $('pvp').checked;
+  broadcastChat('', 'PvP is now ' + (game.pvp ? 'on' : 'off') + '.');
+});
+$('respawn').addEventListener('click', respawn);
+$('winOk').addEventListener('click', function () { closeScreen('win'); });
+
+$('mpBtn').addEventListener('click', function () {
+  hide('pause'); show('host');
+  $('inviteOut').value = ''; $('replyIn').value = ''; $('hostStatus').textContent = '';
+});
+$('hostBack').addEventListener('click', function () { hide('host'); show('pause'); });
+$('mkInvite').addEventListener('click', function () {
+  $('hostStatus').textContent = 'Making your code…';
+  hostInvite().then(function (code) { $('inviteOut').value = code; $('hostStatus').textContent = 'Send this code to your friend.'; })
+    .catch(function (err) { $('hostStatus').textContent = err.message; });
+});
+$('connect').addEventListener('click', function () {
+  $('hostStatus').textContent = 'Connecting…';
+  hostAccept($('replyIn').value).then(function () { $('hostStatus').textContent = 'Connecting… this can take a few seconds.'; })
+    .catch(function (err) { $('hostStatus').textContent = err.message; });
+});
+function copyFrom(id) {
+  var t = $(id); t.select();
+  if (navigator.clipboard) navigator.clipboard.writeText(t.value).catch(function () { document.execCommand('copy'); });
+  else document.execCommand('copy');
+}
+$('copyInvite').addEventListener('click', function () { copyFrom('inviteOut'); });
+$('copyReply').addEventListener('click', function () { copyFrom('replyOut'); });
+$('joinBtn').addEventListener('click', function () {
+  game.name = $('name').value.trim() || game.name;
+  store('blockcraft-name', game.name);
+  hide('title'); show('join');
+  $('inviteIn').value = ''; $('replyOut').value = '';
+});
+$('joinBack').addEventListener('click', function () { hide('join'); show('title'); });
+$('mkReply').addEventListener('click', function () {
+  $('joinStatus').textContent = 'Making your reply code…';
+  guestJoin($('inviteIn').value).then(function (code) {
+    $('replyOut').value = code;
+    $('joinStatus').textContent = 'Send this reply code back to your friend. The game starts when they click Connect.';
+  }).catch(function (err) { $('joinStatus').textContent = err.message; });
+});
+
+/* ---------- boot ---------- */
+game.name = load('blockcraft-name', null) || ('Player' + Math.floor(100 + Math.random() * 900));
+$('name').value = game.name;
+$('continue').classList.toggle('hidden', !load(SAVE, null));
+window.addEventListener('beforeunload', saveGame);
+document.addEventListener('visibilitychange', function () { if (document.hidden) saveGame(); });
+try {
+  initGL();
+  resize();
+  requestAnimationFrame(frame);
+} catch (err) {
+  hide('title');
+  $('errMsg').textContent = err.message;
+  show('err');
+}
+})();
+</script>
+</body>
+</html>

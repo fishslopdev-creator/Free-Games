@@ -6,6 +6,7 @@ These are free games! Quick, quiet games that run in any web browser: no downloa
 
 | Game | Controls |
 | --- | --- |
+| BlockCraft | 3D block-building survival game: mining, crafting, mobs, a mace, a dragon boss, creative mode, and PvP multiplayer (keyboard + mouse; needs WebGL) |
 | Snake | Arrow keys / WASD, on-screen buttons, or swipe |
 | 2048 | Arrow keys / WASD, on-screen buttons, or swipe (with undo + auto-save) |
 | Minesweeper | Mouse (right-click to flag), keyboard, or Flag mode for touch |
@@ -29,6 +30,10 @@ These are free games! Quick, quiet games that run in any web browser: no downloa
 1. In the repo on GitHub, go to **Settings → Pages**.
 2. Under **Build and deployment**, choose **Deploy from a branch**, pick the branch, and choose the `/ (root)` folder.
 3. Save. After a minute the site will be at `https://<your-username>.github.io/Free-Games/`.
+
+## BlockCraft multiplayer
+
+GitHub Pages only hosts files, so it can't run a game server. Instead, BlockCraft connects players' browsers directly (WebRTC). The host presses Esc → **Invite a friend** and sends the invite code; the friend clicks **Join a friend**, pastes it, and sends back a reply code. Some school or office networks block these direct connections; if so, it won't connect there.
 
 ## Adding a game
 
