@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en" data-theme="auto">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Snake · Free Games</title>
+  <link rel="stylesheet" href="../assets/style.css">
+  <script src="../assets/settings.js"></script>
+</head>
+<body>
+  <div class="wrap">
+    <header class="game-header">
+      <a class="back" href="../index.html">← All games</a>
+      <h1>Snake</h1>
+      <div class="stats"><span>Score <b id="score">0</b></span><span>Best <b id="best">0</b></span></div>
+    </header>
+    <main>
+      <div class="toolbar">
+        <button id="start" type="button">Start</button>
+        <button id="restart" type="button" class="secondary">New game</button>
+        <label>Speed
+          <select id="speed">
+            <option value="170">Slow</option>
+            <option value="125" selected>Normal</option>
+            <option value="90">Fast</option>
+          </select>
+        </label>
+      </div>
+      <p id="status" class="status" role="status" aria-live="polite"></p>
+      <div class="stage">
+        <canvas id="board" width="400" height="400" aria-label="Snake game board"></canvas>
+        <div class="dpad" aria-label="Direction buttons">
+          <button type="button" class="up" data-dir="up" aria-label="Up">▲</button>
+          <button type="button" class="left" data-dir="left" aria-label="Left">◀</button>
+          <button type="button" class="down" data-dir="down" aria-label="Down">▼</button>
+          <button type="button" class="right" data-dir="right" aria-label="Right">▶</button>
+        </div>
+      </div>
+      <section class="panel help" aria-labelledby="help-h">
+        <h2 id="help-h">How to play</h2>
+        <ul>
+          <li>Steer with the <kbd>arrow keys</kbd> or <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd>, the buttons under the board, or by swiping.</li>
+          <li>Eat the red food to grow. Hitting a wall or yourself ends the game.</li>
+          <li><kbd>Space</kbd> pauses. The game also pauses by itself when you switch tabs.</li>
+        </ul>
+      </section>
+    </main>
+  </div>
+  <script src="snake.js"></script>
+</body>
+</html>

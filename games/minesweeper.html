@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en" data-theme="auto">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Minesweeper · Free Games</title>
+  <link rel="stylesheet" href="../assets/style.css">
+  <script src="../assets/settings.js"></script>
+</head>
+<body>
+  <div class="wrap">
+    <header class="game-header">
+      <a class="back" href="../index.html">← All games</a>
+      <h1>Minesweeper</h1>
+      <div class="stats"><span>Mines left <b id="left">0</b></span><span>Time <b id="time">0</b>s</span><span>Best <b id="best">–</b></span></div>
+    </header>
+    <main>
+      <div class="toolbar">
+        <button id="restart" type="button">New game</button>
+        <label>Level
+          <select id="level">
+            <option value="easy">Easy (9×9, 10 mines)</option>
+            <option value="medium">Medium (16×16, 40 mines)</option>
+          </select>
+        </label>
+        <button id="flagmode" type="button" class="secondary" aria-pressed="false">Flag mode: off</button>
+      </div>
+      <p id="status" class="status" role="status" aria-live="polite"></p>
+      <div class="stage">
+        <div id="board" class="mines" role="grid" aria-label="Minefield"></div>
+      </div>
+      <section class="panel help" aria-labelledby="help-h">
+        <h2 id="help-h">How to play</h2>
+        <ul>
+          <li>Click a square to uncover it. A number tells you how many of the 8 squares around it hide a mine.</li>
+          <li>Right-click (or turn on <b>Flag mode</b>) to mark a square you think is a mine.</li>
+          <li>Click an uncovered number whose mines are all flagged to open everything around it.</li>
+          <li>Keyboard: move with the <kbd>arrow keys</kbd>, <kbd>Enter</kbd> or <kbd>Space</kbd> to uncover, <kbd>F</kbd> to flag.</li>
+          <li>Your first click is always safe.</li>
+        </ul>
+      </section>
+    </main>
+  </div>
+  <script src="minesweeper.js"></script>
+</body>
+</html>
