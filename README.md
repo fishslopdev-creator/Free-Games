@@ -6,7 +6,7 @@ These are free games! Quick, quiet games that run in any web browser: no downloa
 
 | Game | Controls |
 | --- | --- |
-| BlockCraft | 3D block-building survival game: mining, crafting, mobs, a mace, a dragon boss, creative mode, and PvP multiplayer (keyboard + mouse; needs WebGL) |
+| BlockCraft | 3D block-building survival game with an endless world: mining, Minecraft-style crafting, animated mobs, a mace, a dragon boss, creative mode, and PvP multiplayer (keyboard + mouse; needs WebGL) |
 | Snake | Arrow keys / WASD, on-screen buttons, or swipe |
 | 2048 | Arrow keys / WASD, on-screen buttons, or swipe (with undo + auto-save) |
 | Minesweeper | Mouse (right-click to flag), keyboard, or Flag mode for touch |

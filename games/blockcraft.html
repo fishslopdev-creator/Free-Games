@@ -98,6 +98,22 @@ details { margin-top: 14px; } summary { cursor: pointer; font-weight: 700; }
 .grid.hot { margin-top: 8px; }
 .bigcode { font: 700 2.6rem/1.2 ui-monospace, Consolas, monospace; letter-spacing: .3em; text-align: center; padding: 12px; background: #0e1016; border-radius: 10px; border: 1px solid var(--border); margin: 10px 0; }
 .codein { font: 700 1.6rem ui-monospace, Consolas, monospace; letter-spacing: .3em; max-width: 220px; }
+@keyframes pop { from { transform: scale(.96); opacity: 0; } to { transform: none; opacity: 1; } }
+.screen:not(.hidden) > .box { animation: pop .16s ease-out; }
+#hotbar .slot { transition: transform .12s, border-color .12s; }
+#hotbar .slot.sel { transform: scale(1.1); }
+@keyframes shake { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+#hearts.low span { display: inline-block; animation: shake .35s infinite; }
+#hearts.low span:nth-child(even) { animation-delay: .17s; }
+@keyframes slidein { from { transform: translateX(-12px); opacity: 0; } to { transform: none; opacity: 1; } }
+#msgs div { animation: slidein .2s ease-out; }
+.grid .slot:hover, .booklist .slot:hover, .craftrow .slot:hover { border-color: #aaa; }
+@keyframes glow { 50% { box-shadow: 0 0 0 3px rgba(109,211,109,.55); } }
+.slot.big.ready { animation: glow 1.2s infinite; }
+#itemname { transition: opacity .3s; }
+@keyframes hint { 50% { opacity: .55; } }
+#clickhint { animation: hint 1.6s infinite; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 </style>
 </head>
 <body>
@@ -119,7 +135,7 @@ details { margin-top: 14px; } summary { cursor: pointer; font-weight: 700; }
 
 <div id="title" class="screen"><div class="box">
   <h1>BlockCraft</h1>
-  <p>Mine, build, craft, and survive the night, then summon and defeat the Sky Dragon. Runs entirely in this one page; nothing to install.</p>
+  <p>Explore an endless world: mine, build, craft, and survive the night, then summon and defeat the Sky Dragon. Runs entirely in this one page; nothing to install.</p>
   <div class="row">
     <div><label for="name">Your name</label><input id="name" maxlength="16" autocomplete="off"></div>
     <div><label for="seed">World seed</label><input id="seed" placeholder="Leave blank for random" autocomplete="off"></div>
@@ -159,6 +175,13 @@ details { margin-top: 14px; } summary { cursor: pointer; font-weight: 700; }
   <button id="mpBtn" type="button" class="sec">Invite a friend</button>
   <button id="quit" type="button" class="sec">Save &amp; quit to title</button>
   <label class="inline" id="pvpWrap"><input type="checkbox" id="pvp" checked> PvP: players can hurt each other</label>
+  <label class="inline">Render distance
+    <select id="dist" style="width:auto">
+      <option value="3">Short (fastest)</option>
+      <option value="5">Normal</option>
+      <option value="7">Far</option>
+    </select>
+  </label>
   <p id="pauseInfo"></p>
 </div></div>
 
@@ -269,7 +292,7 @@ function load(k, f) { try { var r = localStorage.getItem(k); return r === null ?
 /* ================= Blocks, items, recipes ================= */
 var TILES = ['grass_top', 'grass_side', 'dirt', 'stone', 'cobble', 'log_side', 'log_top', 'leaves', 'planks', 'sand', 'water',
   'coal_ore', 'iron_ore', 'diamond_ore', 'bedrock', 'glass', 'table_top', 'table_side', 'furnace_front', 'furnace_side',
-  'altar_top', 'altar_side', 'white'];
+  'altar_top', 'altar_side', 'white', 'crack0', 'crack1', 'crack2', 'crack3', 'crack4'];
 var TI = {}; TILES.forEach(function (n, i) { TI[n] = i; });
 
 var B = { AIR: 0, GRASS: 1, DIRT: 2, STONE: 3, COBBLE: 4, LOG: 5, LEAVES: 6, PLANKS: 7, SAND: 8, WATER: 9,
@@ -428,10 +451,24 @@ atlas.width = atlas.height = 256;
     return r() < 0.12 ? vary([170, 90, 230], 40) : vary([36, 18, 54], 20);
   });
   tile('white', function () { return [255, 255, 255]; });
+  // Mining cracks: each stage adds more random crack lines on top of the last.
+  var crackPx = {};
+  for (var st = 0; st < 5; st++) {
+    for (var w2 = 0; w2 < 2; w2++) {
+      var px = 7 + Math.floor(r() * 3) - 1, py = 7 + Math.floor(r() * 3) - 1;
+      for (var stp = 0; stp < 5 + st * 2; stp++) {
+        crackPx[px + ',' + py] = 1;
+        px = clamp(px + Math.floor(r() * 3) - 1, 0, 15); py = clamp(py + Math.floor(r() * 3) - 1, 0, 15);
+      }
+    }
+    (function (snapshot) {
+      tile('crack' + st, function (x, y) { return snapshot[x + ',' + y] ? [15, 15, 15, 210] : [0, 0, 0, 0]; });
+    })(Object.assign({}, crackPx));
+  }
 })();
 
 /* ================= Item icons (pixel art, cached) ================= */
-var iconCache = {};
+var iconCache = {}, iconCanvas = {};
 function iconURL(id) {
   if (iconCache[id]) return iconCache[id];
   var c = document.createElement('canvas'); c.width = c.height = 16;
@@ -470,90 +507,146 @@ function iconURL(id) {
     line(2, 13, 8, 7, '#6b6b6b', 2); disc(11, 5, 3.6, '#8a8a8a'); disc(11, 5, 1.8, '#b5b5b5');
     px(11, 0, '#555', 1); px(15, 5, '#555', 1); px(7, 5, '#555', 1); px(11, 9, '#555', 1);
   }
+  iconCanvas[id] = c;
   iconCache[id] = c.toDataURL();
   return iconCache[id];
 }
 
-/* ================= World ================= */
-var WX = 128, WZ = 128, WY = 48, CS = 16, SEA = 20;
-var world = new Uint8Array(WX * WY * WZ);
-var edits = new Map();
-var spawn = [64, 30, 64];
-function idx(x, y, z) { return (y * WZ + z) * WX + x; }
-function inWorld(x, y, z) { return x >= 0 && z >= 0 && x < WX && z < WZ && y >= 0 && y < WY; }
-function getB(x, y, z) { return inWorld(x, y, z) ? world[idx(x, y, z)] : 0; }
-function isSolid(x, y, z) {
-  if (x < 0 || z < 0 || x >= WX || z >= WZ || y < 0) return true;
-  if (y >= WY) return false;
-  return BL[world[idx(x, y, z)]].solid;
+/* ================= World (infinite, made of 16x16 chunks) ================= */
+// Each chunk is generated from the seed the first time it's needed, so the world goes on forever.
+// Player changes are kept separately and re-applied, so faraway chunks can be unloaded and rebuilt.
+var WY = 48, CS = 16, SEA = 20, RENDER_DIST = clamp(Number(load('blockcraft-dist', 5)) || 5, 3, 8);
+var chunkMap = new Map(), lastC = null, gen = null;
+var edits = new Map();       // packed x,y,z -> block id (for saving and multiplayer)
+var chunkEdits = new Map();  // chunk key -> Map(local index -> block id)
+var spawn = [0.5, 30, 0.5];
+function ck(cx, cz) { return (cx + 32768) * 65536 + (cz + 32768); }
+function li(lx, y, lz) { return (y * CS + lz) * CS + lx; }
+function packKey(x, y, z) { return ((x + 1048576) * 2097152 + (z + 1048576)) * 64 + y; }
+function unpackKey(k) { var y = k % 64, r = (k - y) / 64, z = r % 2097152; return [(r - z) / 2097152 - 1048576, y, z - 1048576]; }
+function inWorld(x, y, z) { return y >= 0 && y < WY; }
+function chunkAt(cx, cz) {
+  if (lastC && lastC.cx === cx && lastC.cz === cz) return lastC;
+  var k = ck(cx, cz), c = chunkMap.get(k);
+  if (!c) {
+    c = { cx: cx, cz: cz, key: k, b: genChunk(cx, cz), op: null, opN: 0, wa: null, waN: 0, dirty: true };
+    chunkMap.set(k, c);
+  }
+  lastC = c;
+  return c;
 }
-function topY(x, z) { for (var y = WY - 1; y >= 0; y--) if (BL[world[idx(x, y, z)]].solid) return y + 1; return 1; }
+function getB(x, y, z) {
+  if (y < 0 || y >= WY) return 0;
+  return chunkAt(x >> 4, z >> 4).b[li(x & 15, y, z & 15)];
+}
+function isSolid(x, y, z) {
+  if (y < 0) return true;
+  if (y >= WY) return false;
+  return BL[getB(x, y, z)].solid;
+}
+function topY(x, z) { for (var y = WY - 1; y >= 0; y--) if (BL[getB(x, y, z)].solid) return y + 1; return 1; }
 
-function generate(seed) {
-  world.fill(0);
-  edits = new Map();
-  var rng = mulberry32(seed ^ 0x9e3779b9), n1 = makeNoise(seed | 0), n2 = makeNoise((seed * 7 + 3) | 0);
-  var hm = new Int16Array(WX * WZ);
-  for (var z = 0; z < WZ; z++) for (var x = 0; x < WX; x++) {
-    var h = Math.floor(6 + n1(x / 40, z / 40) * 30 + n2(x / 12, z / 12) * 5);
-    h = clamp(h, 3, WY - 12);
-    hm[z * WX + x] = h;
-    var beach = h <= SEA + 1;
+function hash3(x, y, z) {
+  var n = Math.imul(x, 374761393) ^ Math.imul(y, 668265263) ^ Math.imul(z, 1274126177) ^ Math.imul(gen.seed, 1442695041);
+  n = Math.imul(n ^ (n >>> 13), 1274126177);
+  return ((n ^ (n >>> 16)) >>> 0) / 4294967296;
+}
+function heightAt(x, z) { return clamp(Math.floor(6 + gen.n1(x / 40, z / 40) * 30 + gen.n2(x / 12, z / 12) * 5), 3, WY - 12); }
+function genChunk(cx, cz) {
+  var b = new Uint8Array(CS * CS * WY), x0 = cx * CS, z0 = cz * CS;
+  var rng = mulberry32((gen.seed ^ Math.imul(cx, 73856093) ^ Math.imul(cz, 19349663)) | 0);
+  for (var lz = 0; lz < CS; lz++) for (var lx = 0; lx < CS; lx++) {
+    var x = x0 + lx, z = z0 + lz, h = heightAt(x, z), beach = h <= SEA + 1;
     for (var y = 0; y <= h; y++) {
       var id;
-      if (y === 0 || (y <= 2 && rng() < 0.5)) id = B.BEDROCK;
+      if (y === 0 || (y <= 2 && hash3(x, y, z) < 0.5)) id = B.BEDROCK;
       else if (y < h - 3) id = B.STONE;
       else if (beach) id = B.SAND;
       else id = y === h ? B.GRASS : B.DIRT;
-      world[idx(x, y, z)] = id;
+      b[li(lx, y, lz)] = id;
     }
-    for (var w = h + 1; w <= SEA; w++) world[idx(x, w, z)] = B.WATER;
+    for (var w = h + 1; w <= SEA; w++) b[li(lx, w, lz)] = B.WATER;
   }
   function veins(id, count, size, maxY) {
     for (var v = 0; v < count; v++) {
-      var vx = Math.floor(rng() * WX), vy = 1 + Math.floor(rng() * maxY), vz = Math.floor(rng() * WZ);
+      var vx = Math.floor(rng() * CS), vy = 1 + Math.floor(rng() * maxY), vz = Math.floor(rng() * CS);
       for (var k = 0; k < size; k++) {
-        if (inWorld(vx, vy, vz) && world[idx(vx, vy, vz)] === B.STONE) world[idx(vx, vy, vz)] = id;
+        if (vx >= 0 && vx < CS && vz >= 0 && vz < CS && vy > 0 && vy < WY && b[li(vx, vy, vz)] === B.STONE) b[li(vx, vy, vz)] = id;
         var dir = Math.floor(rng() * 6);
         if (dir === 0) vx++; else if (dir === 1) vx--; else if (dir === 2) vy++; else if (dir === 3) vy--; else if (dir === 4) vz++; else vz--;
       }
     }
   }
-  veins(B.COAL_ORE, 300, 7, 40);
-  veins(B.IRON_ORE, 190, 5, 30);
-  veins(B.DIAMOND_ORE, 45, 4, 13);
-  for (var tz = 3; tz < WZ - 3; tz++) for (var tx = 3; tx < WX - 3; tx++) {
-    var th0 = hm[tz * WX + tx];
-    if (world[idx(tx, th0, tz)] !== B.GRASS || rng() > 0.012) continue;
-    var th = 4 + Math.floor(rng() * 2);
-    if (th0 + th + 2 >= WY) continue;
-    for (var ly = th - 2; ly <= th + 1; ly++) {
-      var rad = ly >= th ? 1 : 2;
+  veins(B.COAL_ORE, 5, 7, 40);
+  veins(B.IRON_ORE, 3, 5, 30);
+  veins(B.DIAMOND_ORE, rng() < 0.75 ? 1 : 0, 4, 13);
+  // Trees: decided per column, so trees near a chunk edge spill their leaves correctly into neighbours.
+  var trees = [];
+  for (var tz = z0 - 2; tz < z0 + CS + 2; tz++) for (var tx = x0 - 2; tx < x0 + CS + 2; tx++) {
+    if (hash3(tx, 999, tz) > 0.012) continue;
+    var th0 = heightAt(tx, tz);
+    if (th0 <= SEA + 1) continue;
+    trees.push([tx, th0, tz, hash3(tx, 998, tz) < 0.5 ? 4 : 5]);
+  }
+  function put(x, y, z, id, onlyAir) {
+    var lx2 = x - x0, lz2 = z - z0;
+    if (lx2 < 0 || lz2 < 0 || lx2 >= CS || lz2 >= CS || y < 0 || y >= WY) return;
+    var i = li(lx2, y, lz2);
+    if (!onlyAir || !b[i]) b[i] = id;
+  }
+  trees.forEach(function (t) {
+    for (var ly = t[3] - 2; ly <= t[3] + 1; ly++) {
+      var rad = ly >= t[3] ? 1 : 2;
       for (var dz = -rad; dz <= rad; dz++) for (var dx = -rad; dx <= rad; dx++) {
-        if (Math.abs(dx) === rad && Math.abs(dz) === rad && (ly === th + 1 || rng() < 0.5)) continue;
-        var p = idx(tx + dx, th0 + ly, tz + dz);
-        if (!world[p]) world[p] = B.LEAVES;
+        if (Math.abs(dx) === rad && Math.abs(dz) === rad && (ly === t[3] + 1 || hash3(t[0] + dx, t[1] + ly, t[2] + dz) < 0.5)) continue;
+        put(t[0] + dx, t[1] + ly, t[2] + dz, B.LEAVES, true);
       }
     }
-    for (var t = 1; t <= th; t++) world[idx(tx, th0 + t, tz)] = B.LOG;
-  }
-  // spawn point: nearest dry grass to the middle
-  spawn = [WX / 2 + 0.5, topY(WX / 2, WZ / 2), WZ / 2 + 0.5];
-  outer:
-  for (var rr = 0; rr < 50; rr++) {
+  });
+  trees.forEach(function (t) { for (var k = 1; k <= t[3]; k++) put(t[0], t[1] + k, t[2], B.LOG, false); });
+  var ce = chunkEdits.get(ck(cx, cz));
+  if (ce) ce.forEach(function (id, i) { b[i] = id; });
+  return b;
+}
+function freeChunk(c) {
+  if (c.op) gl.deleteBuffer(c.op);
+  if (c.wa) gl.deleteBuffer(c.wa);
+  chunkMap.delete(c.key);
+  if (lastC === c) lastC = null;
+}
+function initGen(seed) {
+  chunkMap.forEach(freeChunk);
+  chunkMap = new Map(); lastC = null;
+  edits = new Map(); chunkEdits = new Map();
+  gen = { seed: seed | 0, n1: makeNoise(seed | 0), n2: makeNoise((seed * 7 + 3) | 0) };
+}
+function recordEdit(x, y, z, id) {
+  edits.set(packKey(x, y, z), id);
+  var k = ck(x >> 4, z >> 4), m = chunkEdits.get(k);
+  if (!m) { m = new Map(); chunkEdits.set(k, m); }
+  m.set(li(x & 15, y, z & 15), id);
+}
+// Apply a stored or received change (the chunk may not be loaded yet).
+function applyEdit(x, y, z, id) {
+  if (y < 0 || y >= WY) return;
+  recordEdit(x, y, z, id);
+  var c = chunkMap.get(ck(x >> 4, z >> 4));
+  if (c) { c.b[li(x & 15, y, z & 15)] = id; markDirty(x, z); }
+}
+function findSpawn() {
+  spawn = [0.5, topY(0, 0), 0.5];
+  for (var rr = 0; rr < 200; rr += 2) {
     for (var a = 0; a < 16; a++) {
-      var sx = Math.floor(WX / 2 + Math.cos(a / 16 * Math.PI * 2) * rr), sz = Math.floor(WZ / 2 + Math.sin(a / 16 * Math.PI * 2) * rr);
+      var sx = Math.floor(Math.cos(a / 16 * Math.PI * 2) * rr), sz = Math.floor(Math.sin(a / 16 * Math.PI * 2) * rr);
       var sy = topY(sx, sz);
-      if (getB(sx, sy - 1, sz) === B.GRASS && !getB(sx, sy, sz) && !getB(sx, sy + 1, sz)) { spawn = [sx + 0.5, sy, sz + 0.5]; break outer; }
+      if (getB(sx, sy - 1, sz) === B.GRASS && !getB(sx, sy, sz) && !getB(sx, sy + 1, sz)) { spawn = [sx + 0.5, sy, sz + 0.5]; return; }
     }
   }
 }
 
 /* ================= Rendering ================= */
 var canvas = $('gl');
-var gl, prog, loc = {}, atlasTex, entBuf, lineBuf;
-var chunks = [];
-var NCX = WX / CS, NCZ = WZ / CS;
+var gl, prog, loc = {}, atlasTex, entBuf, lineBuf, fxBuf;
 
 var VS = 'attribute vec3 aPos;attribute vec2 aUV;attribute vec3 aCol;uniform mat4 uMVP;uniform vec3 uCam;' +
   'varying vec2 vUV;varying vec3 vCol;varying float vDist;' +
@@ -590,9 +683,7 @@ function initGL() {
   gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
   entBuf = gl.createBuffer();
   lineBuf = gl.createBuffer();
-  for (var cz = 0; cz < NCZ; cz++) for (var cx = 0; cx < NCX; cx++) {
-    chunks.push({ cx: cx, cz: cz, op: gl.createBuffer(), opN: 0, wa: gl.createBuffer(), waN: 0, dirty: true });
-  }
+  fxBuf = gl.createBuffer();
 }
 
 var FACES = [
@@ -605,24 +696,19 @@ var FACES = [
 ];
 var UVS = [[0, 1], [1, 1], [1, 0], [0, 0]], ORDER = [0, 1, 2, 0, 2, 3];
 function tileUV(t, u, v) { return [((t % 16) * 16 + (u ? 15.98 : 0.02)) / 256, (Math.floor(t / 16) * 16 + (v ? 15.98 : 0.02)) / 256]; }
-function nbRender(x, y, z) {
-  if (y < 0) return B.BEDROCK;
-  if (y >= WY || x < 0 || z < 0 || x >= WX || z >= WZ) return 0;
-  return world[idx(x, y, z)];
-}
-
 function buildChunk(c) {
-  var op = [], wa = [];
-  var x0 = c.cx * CS, z0 = c.cz * CS;
-  for (var y = 0; y < WY; y++) for (var z = z0; z < z0 + CS; z++) for (var x = x0; x < x0 + CS; x++) {
-    var id = world[idx(x, y, z)];
+  var op = [], wa = [], b = c.b, x0 = c.cx * CS, z0 = c.cz * CS;
+  for (var y = 0; y < WY; y++) for (var lz = 0; lz < CS; lz++) for (var lx = 0; lx < CS; lx++) {
+    var id = b[li(lx, y, lz)];
     if (!id) continue;
-    var bd = BL[id];
+    var bd = BL[id], x = x0 + lx, z = z0 + lz;
     for (var f = 0; f < 6; f++) {
-      var F = FACES[f];
-      var nid = nbRender(x + F.n[0], y + F.n[1], z + F.n[2]);
-      var nb = BL[nid];
-      if (nb.opaque || nid === id) continue;
+      var F = FACES[f], nx = lx + F.n[0], ny = y + F.n[1], nz = lz + F.n[2], nid;
+      if (ny < 0) nid = B.BEDROCK;
+      else if (ny >= WY) nid = 0;
+      else if (nx >= 0 && nx < CS && nz >= 0 && nz < CS) nid = b[li(nx, ny, nz)];
+      else nid = getB(x0 + nx, ny, z0 + nz);
+      if (BL[nid].opaque || nid === id) continue;
       if (bd.water && f !== 2 && nid !== 0) continue; // only show water surface/edges against air
       var arr = bd.water ? wa : op;
       var t = TEX[id][F.t];
@@ -633,6 +719,7 @@ function buildChunk(c) {
       }
     }
   }
+  if (!c.op) { c.op = gl.createBuffer(); c.wa = gl.createBuffer(); }
   gl.bindBuffer(gl.ARRAY_BUFFER, c.op);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(op), gl.STATIC_DRAW);
   c.opN = op.length / 8;
@@ -642,13 +729,32 @@ function buildChunk(c) {
   c.dirty = false;
 }
 function markDirty(x, z) {
-  var cx = Math.floor(x / CS), cz = Math.floor(z / CS);
-  function m(a, b) { if (a >= 0 && b >= 0 && a < NCX && b < NCZ) chunks[b * NCX + a].dirty = true; }
+  var cx = x >> 4, cz = z >> 4, lx = x & 15, lz = z & 15;
+  function m(a, b) { var c = chunkMap.get(ck(a, b)); if (c) c.dirty = true; }
   m(cx, cz);
-  if (x % CS === 0) m(cx - 1, cz);
-  if (x % CS === CS - 1) m(cx + 1, cz);
-  if (z % CS === 0) m(cx, cz - 1);
-  if (z % CS === CS - 1) m(cx, cz + 1);
+  if (lx === 0) m(cx - 1, cz);
+  if (lx === CS - 1) m(cx + 1, cz);
+  if (lz === 0) m(cx, cz - 1);
+  if (lz === CS - 1) m(cx, cz + 1);
+}
+// Build meshes for nearby chunks (closest first, a few per frame) and unload faraway ones.
+var unloadT = 0;
+function updateChunks(budget) {
+  var pcx = Math.floor(player.pos[0]) >> 4, pcz = Math.floor(player.pos[2]) >> 4, R = RENDER_DIST, todo = [];
+  for (var dz = -R; dz <= R; dz++) for (var dx = -R; dx <= R; dx++) {
+    var d2 = dx * dx + dz * dz;
+    if (d2 > R * R + 1) continue;
+    var c = chunkAt(pcx + dx, pcz + dz);
+    if (c.dirty) todo.push([d2, c]);
+  }
+  todo.sort(function (p, q) { return p[0] - q[0]; });
+  for (var i = 0; i < todo.length && i < budget; i++) buildChunk(todo[i][1]);
+  if (++unloadT > 90) {
+    unloadT = 0;
+    chunkMap.forEach(function (c) {
+      if (Math.max(Math.abs(c.cx - pcx), Math.abs(c.cz - pcz)) > R + 3) freeChunk(c);
+    });
+  }
 }
 
 function attribs() {
@@ -669,12 +775,15 @@ function perspective(fovy, aspect, near, far) {
   var f = 1 / Math.tan(fovy / 2), nf = 1 / (near - far);
   return new Float32Array([f / aspect, 0, 0, 0, 0, f, 0, 0, 0, 0, (far + near) * nf, -1, 0, 0, 2 * far * near * nf, 0]);
 }
-function viewMatrix(eye, yaw, pitch) {
+function viewMatrix(eye, yaw, pitch, roll) {
   var cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(-pitch), sp = Math.sin(-pitch);
   var ry = new Float32Array([cy, 0, -sy, 0, 0, 1, 0, 0, sy, 0, cy, 0, 0, 0, 0, 1]);
   var rx = new Float32Array([1, 0, 0, 0, 0, cp, sp, 0, 0, -sp, cp, 0, 0, 0, 0, 1]);
   var tr = new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -eye[0], -eye[1], -eye[2], 1]);
-  return mul(rx, mul(ry, tr));
+  var v = mul(rx, mul(ry, tr));
+  if (!roll) return v;
+  var c = Math.cos(roll), s = Math.sin(roll);
+  return mul(new Float32Array([c, s, 0, 0, -s, c, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]), v);
 }
 
 /* Entity models are built from coloured boxes each frame. */
@@ -690,6 +799,7 @@ function addBox(a, e, lx, ly, lz, sx, sy, sz, col, swing, flash) {
       var cc = F.c[ORDER[k]];
       var px = lx + (cc[0] - 0.5) * sx, py = ly + cc[1] * sy, pz = lz + (cc[2] - 0.5) * sz;
       if (swing) { var dy = py - pivot, dz = pz - lz; py = pivot + dy * cs - dz * ss; pz = lz + dy * ss + dz * cs; }
+      if (e.roll) { var cr = Math.cos(e.roll), sr = Math.sin(e.roll), rx2 = px * cr - py * sr; py = px * sr + py * cr; px = rx2; }
       var wx = px * cyw - pz * syw, wz = px * syw + pz * cyw;
       a.push(e.pos[0] + wx, e.pos[1] + py, e.pos[2] + wz, WHITE_UV[0], WHITE_UV[1], r * F.s, g * F.s, b * F.s);
     }
@@ -702,8 +812,10 @@ function drawHumanoid(a, e, shirt, pants, head, zombie) {
   addBox(a, e, -0.125, 0, 0, 0.25, 0.75, 0.25, pants, s, fl);
   addBox(a, e, 0.125, 0, 0, 0.25, 0.75, 0.25, pants, -s, fl);
   addBox(a, e, 0, 0.75, 0, 0.5, 0.75, 0.28, shirt, 0, fl);
-  addBox(a, e, -0.375, 0.75, 0, 0.25, 0.75, 0.25, zombie ? head : shirt, zombie ? Math.PI / 2 : -s, fl);
-  addBox(a, e, 0.375, 0.75, 0, 0.25, 0.75, 0.25, zombie ? head : shirt, zombie ? Math.PI / 2 : s, fl);
+  var sway = zombie ? Math.PI / 2 + Math.sin(performance.now() / 300 + (e.id || 0)) * 0.08 : 0;
+  var hit = e.swP ? Math.sin(e.swP * Math.PI) * 1.6 : 0;
+  addBox(a, e, -0.375, 0.75, 0, 0.25, 0.75, 0.25, zombie ? head : shirt, zombie ? sway : -s, fl);
+  addBox(a, e, 0.375, 0.75, 0, 0.25, 0.75, 0.25, zombie ? head : shirt, zombie ? sway : s + hit, fl);
   addBox(a, e, 0, 1.5, 0, 0.5, 0.5, 0.5, head, 0, fl);
   addBox(a, e, -0.12, 1.75, -0.255, 0.1, 0.08, 0.02, [0.1, 0.1, 0.1], 0, false);
   addBox(a, e, 0.12, 1.75, -0.255, 0.1, 0.08, 0.02, [0.1, 0.1, 0.1], 0, false);
@@ -818,6 +930,7 @@ function renderHearts() {
     h += v >= 2 ? '<span>♥</span>' : v === 1 ? '<span class="h">♥</span>' : '<span class="e">♥</span>';
   }
   $('hearts').innerHTML = h;
+  $('hearts').classList.toggle('low', player.hp <= 6);
   $('hearts').setAttribute('aria-label', 'Health ' + player.hp + ' of 20');
 }
 var msgEl = $('msgs');
@@ -915,7 +1028,15 @@ function updatePlayer(dt) {
     p.vel[1] = Math.max(p.vel[1], -45);
     if (p.vel[1] < 0) p.fall += -p.vel[1] * dt;
   }
+  var wasAir = !p.onGround, fell = p.fall;
   moveEntity(p, dt);
+  var hs = Math.hypot(p.vel[0], p.vel[2]);
+  if (p.onGround && !p.flying) { fx.bob += hs * dt * 0.42; fx.bobAmt += (Math.min(1, hs / 4.3) - fx.bobAmt) * Math.min(1, dt * 10); }
+  else fx.bobAmt += (0 - fx.bobAmt) * Math.min(1, dt * 10);
+  if (p.onGround && wasAir && fell > 1.2) {
+    var under = getB(Math.floor(p.pos[0]), Math.floor(p.pos[1] - 0.5), Math.floor(p.pos[2]));
+    if (under) for (var di = 0; di < Math.min(4, fell); di++) blockParticles(Math.floor(p.pos[0]), Math.floor(p.pos[1] - 1), Math.floor(p.pos[2]), under);
+  }
   if (p.onGround) {
     if (p.flying) p.flying = false;
     if (p.fall > 3.2 && !creative()) hurtPlayer(Math.floor(p.fall - 2.5), 0, 0, 'fell too far');
@@ -933,6 +1054,7 @@ function hurtPlayer(dmg, kx, kz, cause) {
   player.hp = Math.max(0, player.hp - dmg);
   player.lastHurt = performance.now();
   if (kx || kz) { player.vel[0] = kx * 7; player.vel[2] = kz * 7; player.vel[1] = 5; player.kbT = 0.25; }
+  fx.hurtT = 0.4;
   var h = $('hurt'); h.style.opacity = 1; setTimeout(function () { h.style.opacity = 0; }, 150);
   renderHearts();
   if (player.hp <= 0) die(cause);
@@ -965,7 +1087,7 @@ function raycast(o, d, max) {
   var tmx = init(d[0], o[0], x), tmy = init(d[1], o[1], y), tmz = init(d[2], o[2], z);
   var face = [0, 0, 0], t = 0;
   for (var i = 0; i < 80; i++) {
-    if (inWorld(x, y, z)) { var b = world[idx(x, y, z)]; if (b && !BL[b].water) return { x: x, y: y, z: z, id: b, face: face, t: t }; }
+    if (inWorld(x, y, z)) { var b = getB(x, y, z); if (b && !BL[b].water) return { x: x, y: y, z: z, id: b, face: face, t: t }; }
     if (tmx < tmy && tmx < tmz) { x += sx; t = tmx; tmx += tdx; face = [-sx, 0, 0]; }
     else if (tmy < tmz) { y += sy; t = tmy; tmy += tdy; face = [0, -sy, 0]; }
     else { z += sz; t = tmz; tmz += tdz; face = [0, 0, -sz]; }
@@ -1019,13 +1141,14 @@ function breakBlock(x, y, z) {
 }
 function setBlock(x, y, z, id, remote) {
   if (!inWorld(x, y, z)) return;
-  var i = idx(x, y, z);
-  world[i] = id;
-  edits.set(i, id);
+  var prev = getB(x, y, z);
+  chunkAt(x >> 4, z >> 4).b[li(x & 15, y, z & 15)] = id;
+  recordEdit(x, y, z, id);
   markDirty(x, z);
+  if (!id && prev) blockParticles(x, y, z, prev);
   if (!remote) {
-    if (net.role === 'guest') netSend(net.host, { t: 'e', i: i, b: id });
-    else sendAll({ t: 'e', i: i, b: id });
+    if (net.role === 'guest') netSend(net.host, { t: 'e', x: x, y: y, z: z, b: id });
+    else sendAll({ t: 'e', x: x, y: y, z: z, b: id });
   }
   if (id === B.ALTAR && net.role !== 'guest') spawnDragon(x, y, z);
 }
@@ -1053,7 +1176,11 @@ function attack(t) {
     player.fall = 0;
     player.vel[1] = 4;
     msg('Smash attack! +' + bonus + ' damage');
+    fx.shakeT = 0.35;
+    sparks(t.e.pos[0], t.e.pos[1] + 0.2, t.e.pos[2], 40, [1, 0.9, 0.4], 9);
+    blockParticles(Math.floor(t.e.pos[0]), Math.floor(t.e.pos[1] - 1), Math.floor(t.e.pos[2]), getB(Math.floor(t.e.pos[0]), Math.floor(t.e.pos[1] - 1), Math.floor(t.e.pos[2])) || B.DIRT);
   }
+  sparks(t.e.pos[0], t.e.pos[1] + t.e.h * 0.6, t.e.pos[2], 6, [1, 1, 1], 3);
   if (t.kind === 'mob') {
     if (net.role === 'guest') netSend(net.host, { t: 'hit', target: 'm:' + t.id, dmg: dmg, kx: kx, kz: kz });
     else hurtMob(t.e, dmg, kx, kz, 'h');
@@ -1075,6 +1202,9 @@ function useItem() {
   if (it && it.food && !creative()) {
     if (player.hp >= 20) { msg("You're not hungry — eat when you're hurt."); return; }
     player.hp = Math.min(20, player.hp + it.food);
+    var ed = eye(), ld = lookDir();
+    sparks(ed[0] + ld[0] * 0.5, ed[1] - 0.2, ed[2] + ld[2] * 0.5, 10, foodColor(held().id), 2);
+    swingHand();
     consumeHeld();
     renderHearts();
     msg('Ate ' + it.name + '.');
@@ -1085,6 +1215,7 @@ function useItem() {
   if (!canPlaceAt(x, y, z)) return;
   var id = held().id;
   setBlock(x, y, z, id);
+  swingHand();
   consumeHeld();
 }
 
@@ -1095,7 +1226,7 @@ function updateInteraction(dt) {
   player.attackT -= dt; player.useT -= dt;
   var bar = $('breakbar');
   if (mouse.left && entTarget) {
-    if (player.attackT <= 0) { attack(entTarget); player.attackT = 0.45; }
+    if (player.attackT <= 0) { attack(entTarget); player.attackT = 0.45; swingHand(); }
     breakState.p = 0; bar.classList.add('hidden');
   } else if (mouse.left && target) {
     var key = target.x + ',' + target.y + ',' + target.z;
@@ -1103,9 +1234,10 @@ function updateInteraction(dt) {
     var bt = breakTime(target.id);
     if (bt === Infinity) { bar.classList.add('hidden'); }
     else if (creative()) {
-      if (player.attackT <= 0) { breakBlock(target.x, target.y, target.z); player.attackT = 0.22; }
+      if (player.attackT <= 0) { breakBlock(target.x, target.y, target.z); player.attackT = 0.22; swingHand(); }
     } else {
       breakState.p += dt / bt;
+      swingHand();
       bar.classList.remove('hidden');
       bar.firstChild.style.width = Math.min(100, breakState.p * 100) + '%';
       if (breakState.p >= 1) { breakBlock(target.x, target.y, target.z); breakState.p = 0; breakState.key = ''; }
@@ -1114,6 +1246,7 @@ function updateInteraction(dt) {
     breakState.p = 0; breakState.key = ''; bar.classList.add('hidden');
   }
   if (mouse.right && player.useT <= 0) { useItem(); player.useT = 0.25; }
+  if (mouse.left && !target && !entTarget) swingHand();
 }
 
 /* ================= Mobs and the dragon (run by the host) ================= */
@@ -1161,6 +1294,8 @@ function hurtMob(m, dmg, kx, kz, byId) {
   if (m.type !== 'dragon') { m.vel[0] = kx * 6; m.vel[2] = kz * 6; m.vel[1] = 5; m.kbT = 0.3; m.fleeT = 3; }
   if (m.hp > 0) return;
   mobs.splice(mobs.indexOf(m), 1);
+  if (m.type === 'dragon') dragonExplosion(m); else addCorpse(m);
+  sendAll({ t: 'die', id: m.id });
   if (m.type === 'pig') giveTo(byId, 105, 1 + Math.floor(Math.random() * 2));
   if (m.type === 'dragon') {
     game.dragonDead = true;
@@ -1198,7 +1333,8 @@ function updateMobs(dt) {
       } else wander(m, dt);
       if (!isNight() && sunExposed(m)) {
         m.burn += dt;
-        if (m.burn > 1) { m.burn = 0; m.hp -= 2; m.hurtT = 0.2; if (m.hp <= 0) { mobs.splice(i, 1); continue; } }
+        if (Math.random() < dt * 8) sparks(m.pos[0] + rnd(0.5), m.pos[1] + Math.random() * 1.8, m.pos[2] + rnd(0.5), 1, [1, 0.55, 0.1], 0.6);
+        if (m.burn > 1) { m.burn = 0; m.hp -= 2; m.hurtT = 0.2; if (m.hp <= 0) { addCorpse(m); sendAll({ t: 'die', id: m.id }); mobs.splice(i, 1); continue; } }
       }
       if (!t && m.moving) speed = 1;
     } else {
@@ -1287,7 +1423,6 @@ function spawnMobs(dt) {
   if (!type) return;
   var a = Math.random() * Math.PI * 2, r = 18 + Math.random() * 14;
   var x = Math.floor(p[0] + Math.cos(a) * r), z = Math.floor(p[2] + Math.sin(a) * r);
-  if (x < 1 || z < 1 || x >= WX - 1 || z >= WZ - 1) return;
   var y = topY(x, z), below = getB(x, y - 1, z);
   if (y >= WY - 2 || getB(x, y, z) || (below !== B.GRASS && below !== B.DIRT && below !== B.SAND && below !== B.STONE)) return;
   if (type === 'pig' && below !== B.GRASS) return;
@@ -1418,10 +1553,18 @@ function relayListen(room, onMsg) {
     setTimeout(function () { if (!done) { rej(new Error('timeout')); try { ws.close(); } catch (e) { /* ignore */ } } }, 8000);
   });
 }
-function relaySend(room, obj) {
-  return fetch(RELAY + ROOM_PREFIX + room, { method: 'POST', body: JSON.stringify(obj) })
-    .then(function (r) { if (!r.ok) throw new Error('relay ' + r.status); });
+// Retries when the free relay says it's busy (a whole school often shares one internet address).
+function relaySend(room, obj, tries) {
+  tries = tries || 0;
+  return fetch(RELAY + ROOM_PREFIX + room, { method: 'POST', body: JSON.stringify(obj) }).then(function (r) {
+    if (r.ok) return;
+    if ((r.status === 429 || r.status >= 500) && tries < 4) {
+      return new Promise(function (res) { setTimeout(res, [1500, 3000, 5000, 8000][tries]); }).then(function () { return relaySend(room, obj, tries + 1); });
+    }
+    throw new Error(r.status === 429 ? 'busy' : 'relay ' + r.status);
+  });
 }
+var BUSY_MSG = 'The free matchmaking server is busy (too many requests from your network). Wait a minute and try again, or use long codes instead (below).';
 function supportsOnline() { return !!(window.RTCPeerConnection && window.WebSocket && window.fetch); }
 function hostAttach(code, ws) {
   net.sig = ws; net.code = code;
@@ -1461,7 +1604,10 @@ function hostRelayMsg(d) {
     .then(function (a) { return pc.setLocalDescription(a); })
     .then(function () { return waitIce(pc); })
     .then(function () { return relaySend(code, { t: 'answer', to: d.from, sdp: pc.localDescription.sdp }); })
-    .catch(function () { $('hostStatus').textContent = "A friend tried to join, but it didn't work. Ask them to try again."; });
+    .catch(function (err) {
+      $('hostStatus').textContent = err.message === 'busy' ? 'A friend tried to join, but the matchmaking server is busy. Ask them to try again in a minute.' :
+        "A friend tried to join, but it didn't work. Ask them to try again.";
+    });
 }
 function cancelJoin() {
   var j = net.join;
@@ -1503,7 +1649,8 @@ function guestJoinCode(code) {
     return pc.createOffer()
       .then(function (o) { return pc.setLocalDescription(o); })
       .then(function () { return waitIce(pc); })
-      .then(function () { return relaySend(code, { t: 'offer', from: me, sdp: pc.localDescription.sdp }); });
+      .then(function () { return relaySend(code, { t: 'offer', from: me, sdp: pc.localDescription.sdp }); })
+      .catch(function (err) { fail(err.message === 'busy' ? BUSY_MSG : "Couldn't send the join request. Check your connection and try again."); });
   });
 }
 
@@ -1520,10 +1667,9 @@ function handleMsg(peer, m) {
       broadcastChat('', peer.name + ' joined the game.');
     } else if (m.t === 'p') {
       var o = others[peer.id]; if (!o) return;
-      o.target = [m.x, m.y, m.z]; o.yaw = m.yaw; o.pitch = m.pitch; o.dead = !!m.dead;
+      o.target = [m.x, m.y, m.z]; o.yaw = m.yaw; o.pitch = m.pitch; o.dead = !!m.dead; o.sw = m.sw ? 1 : 0;
     } else if (m.t === 'e') {
-      var x = m.i % WX, z = Math.floor(m.i / WX) % WZ, y = Math.floor(m.i / (WX * WZ));
-      setBlock(x, y, z, m.b, true);
+      setBlock(m.x | 0, m.y | 0, m.z | 0, m.b | 0, true);
       sendAll(m, peer);
     } else if (m.t === 'hit') {
       var parts = String(m.target).split(':');
@@ -1543,24 +1689,23 @@ function handleMsg(peer, m) {
   // ---- guest side ----
   if (m.t === 'init') {
     game.seed = m.seed; game.mode = m.mode; game.time = m.time; game.pvp = m.pvp; net.myId = m.you; furnaces = {};
-    generate(m.seed);
+    initGen(m.seed);
     spawn = m.spawn;
   } else if (m.t === 'ed') {
-    m.l.forEach(function (e) { world[e[0]] = e[1]; edits.set(e[0], e[1]); });
+    m.l.forEach(function (e) { var p = unpackKey(e[0]); applyEdit(p[0], p[1], p[2], e[1]); });
   } else if (m.t === 'start') {
     hide('join');
     startGame(false);
     msg('Joined the game. Have fun!');
   } else if (m.t === 'e') {
-    var gx = m.i % WX, gz = Math.floor(m.i / WX) % WZ, gy = Math.floor(m.i / (WX * WZ));
-    setBlock(gx, gy, gz, m.b, true);
+    setBlock(m.x | 0, m.y | 0, m.z | 0, m.b | 0, true);
   } else if (m.t === 'ps') {
     var seen = {};
     m.l.forEach(function (p) {
       if (p.id === net.myId) return;
       seen[p.id] = 1;
       var o = others[p.id] || (others[p.id] = { name: p.name, pos: [p.x, p.y, p.z], w: 0.6, h: 1.8, hurtT: 0, walk: 0 });
-      o.name = p.name; o.target = [p.x, p.y, p.z]; o.yaw = p.yaw; o.pitch = p.pitch; o.dead = p.dead;
+      o.name = p.name; o.target = [p.x, p.y, p.z]; o.yaw = p.yaw; o.pitch = p.pitch; o.dead = p.dead; o.sw = p.sw;
     });
     Object.keys(others).forEach(function (k) { if (!seen[k]) delete others[k]; });
   } else if (m.t === 'm') {
@@ -1575,6 +1720,12 @@ function handleMsg(peer, m) {
       if (q.hu) e.hurtT = 0.3;
       return e;
     });
+  } else if (m.t === 'die') {
+    var dead = mobs.filter(function (q) { return q.id === m.id; })[0];
+    if (dead) {
+      mobs.splice(mobs.indexOf(dead), 1);
+      if (dead.type === 'dragon') dragonExplosion(dead); else addCorpse(dead);
+    }
   } else if (m.t === 'dmg') {
     hurtPlayer(m.dmg, m.kx, m.kz, m.cause);
   } else if (m.t === 'give') {
@@ -1592,10 +1743,10 @@ function netTick(dt) {
   if (net.tick > 0) return;
   net.tick = 1 / 15;
   if (net.role === 'guest') {
-    netSend(net.host, { t: 'p', x: r2(player.pos[0]), y: r2(player.pos[1]), z: r2(player.pos[2]), yaw: r2(player.yaw), pitch: r2(player.pitch), dead: player.dead });
+    netSend(net.host, { t: 'p', x: r2(player.pos[0]), y: r2(player.pos[1]), z: r2(player.pos[2]), yaw: r2(player.yaw), pitch: r2(player.pitch), dead: player.dead, sw: fx.swingT > 0 ? 1 : 0 });
   } else if (net.peers.length) {
-    var l = [{ id: 'h', name: game.name, x: r2(player.pos[0]), y: r2(player.pos[1]), z: r2(player.pos[2]), yaw: r2(player.yaw), pitch: r2(player.pitch), dead: player.dead }];
-    Object.keys(others).forEach(function (k) { var o = others[k]; l.push({ id: k, name: o.name, x: r2(o.pos[0]), y: r2(o.pos[1]), z: r2(o.pos[2]), yaw: o.yaw, pitch: o.pitch, dead: o.dead }); });
+    var l = [{ id: 'h', name: game.name, x: r2(player.pos[0]), y: r2(player.pos[1]), z: r2(player.pos[2]), yaw: r2(player.yaw), pitch: r2(player.pitch), dead: player.dead, sw: fx.swingT > 0 ? 1 : 0 }];
+    Object.keys(others).forEach(function (k) { var o = others[k]; l.push({ id: k, name: o.name, x: r2(o.pos[0]), y: r2(o.pos[1]), z: r2(o.pos[2]), yaw: o.yaw, pitch: o.pitch, dead: o.dead, sw: o.sw }); });
     sendAll({ t: 'ps', l: l });
     sendAll({ t: 'm', time: game.time, pvp: game.pvp, l: mobs.map(function (q) {
       return { id: q.id, type: q.type, x: r2(q.pos[0]), y: r2(q.pos[1]), z: r2(q.pos[2]), yaw: r2(q.yaw), hp: Math.ceil(q.hp), mx: q.maxHp, hu: q.hurtT > 0 ? 1 : 0 };
@@ -1611,6 +1762,7 @@ function smoothRemote(dt) {
     var moved = Math.hypot(e.pos[0] - ox, e.pos[2] - oz);
     e.walk = (e.walk || 0) + moved * 4; e.moveAmt = moved / dt / 2;
     e.hurtT -= dt;
+    e.swP = e.sw || e.swP > 0 ? ((e.swP || 0) + dt / SWING) % 1 : 0;
   }
   Object.keys(others).forEach(function (id) { lerp(others[id]); });
   if (net.role === 'guest') mobs.forEach(lerp);
@@ -1620,7 +1772,7 @@ function smoothRemote(dt) {
 var SAVE = 'blockcraft-save';
 function saveGame() {
   if (net.role === 'guest' || !game.running) return;
-  var ok = store(SAVE, { v: 1, seed: game.seed, mode: game.mode, time: game.time, edits: Array.from(edits.entries()), inv: inv, sel: sel,
+  var ok = store(SAVE, { v: 2, spawn: spawn, seed: game.seed, mode: game.mode, time: game.time, edits: Array.from(edits.entries()), inv: inv, sel: sel,
     furnaces: furnaces, pos: player.pos, hp: player.hp, dragonDead: game.dragonDead, playTime: game.playTime, pvp: game.pvp });
   if (!ok) msg("Couldn't save — this browser is blocking storage.");
 }
@@ -1642,74 +1794,337 @@ function update(dt) {
   if (!player.dead) { updatePlayer(dt); updateInteraction(dt); }
   if (net.role !== 'guest') { updateMobs(dt); spawnMobs(dt); }
   tickFurnaces(dt);
+  updateParticles(dt);
+  updateCorpses(dt);
   smoothRemote(dt);
   netTick(dt);
   saveT -= dt;
   if (saveT <= 0) { saveT = 30; saveGame(); }
 }
 
-function render() {
+/* ================= Animation & effects ================= */
+var reduceMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+var fx = { bob: 0, bobAmt: 0, hurtT: 0, shakeT: 0, fov: 70, swingT: 0, equipT: 0, heldKey: '', waterT: 0 };
+var particles = [], corpses = [];
+var SWING = 0.28;
+function swingHand() { if (fx.swingT <= 0.04) fx.swingT = SWING; }
+
+function spawnParticle(pos, vel, life, uv, col, size, grav) {
+  if (particles.length > 700) particles.shift();
+  particles.push({ p: pos, v: vel, life: life, max: life, uv: uv, col: col, s: size, g: grav });
+}
+function rnd(a) { return (Math.random() - 0.5) * a; }
+function foodColor(id) { return id === 104 ? [0.85, 0.15, 0.15] : id === 106 ? [0.65, 0.38, 0.22] : [0.95, 0.6, 0.6]; }
+function blockParticles(x, y, z, id) {
+  if (!TEX[id]) return;
+  var t = TEX[id][2];
+  for (var i = 0; i < 18; i++) {
+    var u = (t % 16) * 16 + Math.floor(Math.random() * 16) + 0.5, v = Math.floor(t / 16) * 16 + Math.floor(Math.random() * 16) + 0.5;
+    spawnParticle([x + 0.5 + rnd(0.7), y + 0.5 + rnd(0.7), z + 0.5 + rnd(0.7)], [rnd(3.5), 1 + Math.random() * 3, rnd(3.5)],
+      0.5 + Math.random() * 0.5, [u / 256, v / 256], [1, 1, 1], 0.08 + Math.random() * 0.07, 16);
+  }
+}
+function puff(x, y, z, n, col, spread) {
+  for (var i = 0; i < n; i++) {
+    spawnParticle([x + rnd(spread), y + rnd(spread), z + rnd(spread)], [rnd(1.2), 0.4 + Math.random() * 1.2, rnd(1.2)],
+      0.5 + Math.random() * 0.6, WHITE_UV, col, 0.12 + Math.random() * 0.14, -0.6);
+  }
+}
+function sparks(x, y, z, n, col, speed) {
+  for (var i = 0; i < n; i++) {
+    spawnParticle([x, y, z], [rnd(speed), Math.random() * speed * 0.7, rnd(speed)], 0.3 + Math.random() * 0.4, WHITE_UV, col, 0.06 + Math.random() * 0.06, 9);
+  }
+}
+function updateParticles(dt) {
+  for (var i = particles.length - 1; i >= 0; i--) {
+    var q = particles[i];
+    q.life -= dt;
+    if (q.life <= 0) { particles.splice(i, 1); continue; }
+    q.v[1] -= q.g * dt;
+    var nx = q.p[0] + q.v[0] * dt, ny = q.p[1] + q.v[1] * dt, nz = q.p[2] + q.v[2] * dt;
+    if (q.g > 0 && isSolid(Math.floor(nx), Math.floor(ny), Math.floor(nz))) { q.v = [q.v[0] * 0.3, 0, q.v[2] * 0.3]; continue; }
+    q.p[0] = nx; q.p[1] = ny; q.p[2] = nz;
+  }
+}
+function addCorpse(m) {
+  corpses.push({ id: m.id, type: m.type, pos: m.pos.slice(), yaw: m.yaw, roll: 0, t: 0, hurtT: 1, walk: m.walk || 0, moveAmt: 0, w: m.w, h: m.h,
+    dir: Math.random() < 0.5 ? 1 : -1 });
+}
+function updateCorpses(dt) {
+  for (var i = corpses.length - 1; i >= 0; i--) {
+    var c = corpses[i];
+    c.t += dt;
+    c.roll = Math.min(1, c.t / 0.45) * Math.PI / 2 * c.dir;
+    if (c.t > 1) { puff(c.pos[0], c.pos[1] + 0.4, c.pos[2], 14, [0.85, 0.85, 0.85], 0.8); corpses.splice(i, 1); }
+  }
+}
+function dragonExplosion(d) {
+  for (var i = 0; i < 160; i++) {
+    spawnParticle([d.pos[0] + rnd(3), d.pos[1] + 0.8 + rnd(2), d.pos[2] + rnd(3)], [rnd(14), rnd(14), rnd(14)], 0.8 + Math.random() * 1.4,
+      WHITE_UV, Math.random() < 0.5 ? [0.75, 0.35, 1] : [0.2, 0.05, 0.3], 0.15 + Math.random() * 0.25, 2);
+  }
+  fx.shakeT = 0.8;
+}
+// Rippling water: the water texture is redrawn a few times a second.
+var waterImg = null;
+function animateWater(dt) {
+  fx.waterT += dt;
+  if (reduceMotion || (fx.waterT % 0.15) > dt) return;
+  if (!waterImg) waterImg = new ImageData(16, 16);
+  var t = fx.waterT, d = waterImg.data;
+  for (var y = 0; y < 16; y++) for (var x = 0; x < 16; x++) {
+    var w = Math.sin((x + t * 5) / 2.2) + Math.sin((y * 1.3 - t * 3.5) / 2.8) + Math.sin((x + y + t * 2) / 4);
+    var o = (y * 16 + x) * 4;
+    d[o] = 46 + w * 7; d[o + 1] = 94 + w * 10; d[o + 2] = 212 + w * 7; d[o + 3] = 170;
+  }
+  gl.bindTexture(gl.TEXTURE_2D, atlasTex);
+  gl.texSubImage2D(gl.TEXTURE_2D, 0, (TI.water % 16) * 16, Math.floor(TI.water / 16) * 16, gl.RGBA, gl.UNSIGNED_BYTE, waterImg);
+}
+
+/* ---------- geometry helpers ---------- */
+function addCube(a, x, y, z, s, uv, col) {
+  for (var f = 0; f < 6; f++) {
+    var F = FACES[f];
+    for (var k = 0; k < 6; k++) {
+      var cc = F.c[ORDER[k]];
+      a.push(x + (cc[0] - 0.5) * s, y + (cc[1] - 0.5) * s, z + (cc[2] - 0.5) * s, uv[0], uv[1], col[0] * F.s, col[1] * F.s, col[2] * F.s);
+    }
+  }
+}
+function rotP(x, y, z, rx, ry, rz) {
+  var c = Math.cos(rz), s2 = Math.sin(rz), t = x * c - y * s2; y = x * s2 + y * c; x = t;
+  c = Math.cos(rx); s2 = Math.sin(rx); t = y * c - z * s2; z = y * s2 + z * c; y = t;
+  c = Math.cos(ry); s2 = Math.sin(ry); t = x * c + z * s2; z = -x * s2 + z * c; x = t;
+  return [x, y, z];
+}
+// A box in camera space (used for the first-person hand), rotated about a pivot.
+function addVBox(a, pivot, rot, c, size, col, tiles) {
+  for (var f = 0; f < 6; f++) {
+    var F = FACES[f];
+    for (var k = 0; k < 6; k++) {
+      var q = ORDER[k], cc = F.c[q];
+      var p = rotP(c[0] + (cc[0] - 0.5) * size[0], c[1] + (cc[1] - 0.5) * size[1], c[2] + (cc[2] - 0.5) * size[2], rot[0], rot[1], rot[2]);
+      var uv = tiles ? tileUV(tiles[F.t], UVS[q][0], UVS[q][1]) : WHITE_UV;
+      a.push(pivot[0] + p[0], pivot[1] + p[1], pivot[2] + p[2], uv[0], uv[1], col[0] * F.s, col[1] * F.s, col[2] * F.s);
+    }
+  }
+}
+var spritePx = {};
+function spritePixels(id) {
+  if (spritePx[id]) return spritePx[id];
+  iconURL(id);
+  var d = iconCanvas[id].getContext('2d').getImageData(0, 0, 16, 16).data, list = [];
+  for (var y = 0; y < 16; y++) for (var x = 0; x < 16; x++) {
+    var o = (y * 16 + x) * 4;
+    if (d[o + 3] > 40) list.push([x, y, [d[o] / 255, d[o + 1] / 255, d[o + 2] / 255]]);
+  }
+  spritePx[id] = list;
+  return list;
+}
+function drawHand(a) {
+  var p = fx.swingT > 0 ? 1 - fx.swingT / SWING : 0, sw = Math.sin(p * Math.PI), sw2 = Math.sin(Math.sqrt(p) * Math.PI);
+  var eq = fx.equipT > 0 ? fx.equipT / 0.25 : 0, bob = reduceMotion ? 0 : fx.bobAmt;
+  var pivot = [0.56 + Math.sin(fx.bob * Math.PI) * 0.035 * bob - sw2 * 0.22,
+    -0.5 - eq * 0.55 - Math.abs(Math.cos(fx.bob * Math.PI)) * 0.035 * bob + sw2 * 0.1,
+    -0.8 - sw * 0.15];
+  var h = held(), it = h ? IT[h.id] : null;
+  if (!it) {
+    addVBox(a, pivot, [0.3 - sw * 1.1, 0.35 + sw * 0.4, 0], [0, 0, 0.1], [0.17, 0.17, 0.62], SKIN);
+  } else if (it.block) {
+    addVBox(a, pivot, [0.2 - sw * 0.9, 0.78 + sw * 0.3, 0], [-0.04, 0.02, 0], [0.34, 0.34, 0.34], [1, 1, 1], TEX[h.id]);
+  } else {
+    var S = 0.034, px = spritePixels(h.id), rot = [0.15 - sw * 1.2, -0.95 + sw * 0.3, 0.05];
+    for (var i = 0; i < px.length; i++) {
+      addVBox(a, pivot, rot, [(px[i][0] - 8) * S, (8 - px[i][1]) * S + 0.1, 0], [S, S, S], px[i][2]);
+    }
+  }
+}
+function quadFacing(a, center, dir, size, col) {
+  var u = [dir[1] * 1 - dir[2] * 0, dir[2] * 0 - dir[0] * 1, 0]; // dir x (0,0,1)
+  var ul = Math.hypot(u[0], u[1], u[2]) || 1; u = [u[0] / ul * size, u[1] / ul * size, u[2] / ul * size];
+  var v = [dir[1] * u[2] - dir[2] * u[1], dir[2] * u[0] - dir[0] * u[2], dir[0] * u[1] - dir[1] * u[0]];
+  var P = [[-1, -1], [1, -1], [1, 1], [-1, -1], [1, 1], [-1, 1]];
+  P.forEach(function (q) {
+    a.push(center[0] + u[0] * q[0] + v[0] * q[1], center[1] + u[1] * q[0] + v[1] * q[1], center[2] + u[2] * q[0] + v[2] * q[1],
+      WHITE_UV[0], WHITE_UV[1], col[0], col[1], col[2]);
+  });
+}
+var STARS = (function () {
+  var r = mulberry32(77), list = [];
+  while (list.length < 180) {
+    var x = r() * 2 - 1, y = r() * 2 - 1, z = r() * 2 - 1, l = Math.hypot(x, y, z);
+    if (l > 1 || l < 0.2) continue;
+    list.push([x / l, y / l, z / l, 0.25 + r() * 0.35]);
+  }
+  return list;
+})();
+function drawSky(a, e, sky, light) {
+  var ang = game.time * Math.PI * 2;
+  var sun = [Math.cos(ang), Math.sin(ang), 0.2], l = Math.hypot(sun[0], sun[1], sun[2]);
+  sun = [sun[0] / l, sun[1] / l, sun[2] / l];
+  var D = 160;
+  quadFacing(a, [e[0] + sun[0] * D, e[1] + sun[1] * D, e[2] + sun[2] * D], sun, 13, [1, 0.93, 0.55]);
+  quadFacing(a, [e[0] - sun[0] * D, e[1] - sun[1] * D, e[2] - sun[2] * D], [-sun[0], -sun[1], -sun[2]], 9, [0.9, 0.92, 1]);
+  var night = clamp((0.62 - light) / 0.35, 0, 1);
+  if (night <= 0) return;
+  var ca = Math.cos(ang), sa = Math.sin(ang);
+  STARS.forEach(function (st) {
+    var x = st[0] * ca - st[1] * sa, y = st[0] * sa + st[1] * ca, z = st[2];
+    if (y < -0.05) return;
+    var b = night * 0.9;
+    quadFacing(a, [e[0] + x * D, e[1] + y * D, e[2] + z * D], [x, y, z], st[3],
+      [sky[0] + (1 - sky[0]) * b, sky[1] + (1 - sky[1]) * b, sky[2] + (1 - sky[2]) * b]);
+  });
+}
+function cloudHash(x, z) { var n = Math.imul(x, 73856093) ^ Math.imul(z, 19349663); n = Math.imul(n ^ (n >>> 13), 1274126177); return ((n ^ (n >>> 16)) >>> 0) / 4294967296; }
+function drawClouds(a, e, light) {
+  var CELL = 12, Y = WY + 16, drift = (game.playTime * 1.3) % (CELL * 100000);
+  var gx0 = Math.floor((e[0] - drift) / CELL), gz0 = Math.floor(e[2] / CELL), c = 0.12 + 0.88 * light;
+  for (var dz = -11; dz <= 11; dz++) for (var dx = -11; dx <= 11; dx++) {
+    var gx = gx0 + dx, gz = gz0 + dz;
+    if (cloudHash(gx, gz) > 0.24) continue;
+    var x = gx * CELL + drift, z = gz * CELL;
+    for (var f = 0; f < 6; f++) {
+      var F = FACES[f];
+      for (var k = 0; k < 6; k++) {
+        var cc = F.c[ORDER[k]];
+        a.push(x + cc[0] * CELL, Y + cc[1] * 3, z + cc[2] * CELL, WHITE_UV[0], WHITE_UV[1], c * F.s, c * F.s, c * F.s);
+      }
+    }
+  }
+}
+function drawArray(buf, a, mode) {
+  if (!a.length) return;
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(a), gl.DYNAMIC_DRAW);
+  attribs();
+  gl.drawArrays(mode === undefined ? gl.TRIANGLES : mode, 0, a.length / 8);
+}
+
+function render(dt) {
+  dt = dt || 0;
   var light = daylight();
-  var e = eye();
+  animateWater(dt);
+  // camera effects: view bobbing, hurt tilt, sprint zoom, shake
+  fx.hurtT = Math.max(0, fx.hurtT - dt);
+  fx.shakeT = Math.max(0, fx.shakeT - dt);
+  fx.swingT = Math.max(0, fx.swingT - dt);
+  fx.equipT = Math.max(0, fx.equipT - dt);
+  var hk = sel + ':' + (held() ? held().id : 0);
+  if (hk !== fx.heldKey) { fx.heldKey = hk; fx.equipT = 0.25; }
+  var sprinting = (keys.ShiftLeft || keys.ShiftRight) && !player.flying && Math.hypot(player.vel[0], player.vel[2]) > 5;
+  var fovTarget = 70 + (reduceMotion ? 0 : (sprinting ? 8 : 0) + (player.flying && (keys.ShiftLeft || keys.ShiftRight) ? 0 : 0));
+  fx.fov += (fovTarget - fx.fov) * Math.min(1, dt * 8);
+  proj = perspective(fx.fov * Math.PI / 180, canvas.width / canvas.height, 0.05, 400);
+  var e = eye(), roll = 0, sy = 0, sp = 0;
+  if (!reduceMotion) {
+    e[1] += (Math.abs(Math.sin(fx.bob * Math.PI)) * 0.07 - 0.035) * fx.bobAmt;
+    roll = Math.sin(fx.bob * Math.PI) * 0.006 * fx.bobAmt + Math.sin(fx.hurtT / 0.4 * Math.PI) * 0.12;
+    if (fx.shakeT > 0) { sy = rnd(0.04) * fx.shakeT; sp = rnd(0.04) * fx.shakeT; }
+  }
   var underwater = BL[getB(Math.floor(e[0]), Math.floor(e[1]), Math.floor(e[2]))].water;
   var day = [0.56, 0.77, 1.0], night = [0.03, 0.05, 0.13], k = (light - 0.22) / 0.78;
   var sky = underwater ? [0.08, 0.2, 0.5] : [night[0] + (day[0] - night[0]) * k, night[1] + (day[1] - night[1]) * k, night[2] + (day[2] - night[2]) * k];
+  // sunset/sunrise glow
+  var sunH = Math.sin(game.time * Math.PI * 2);
+  if (!underwater && Math.abs(sunH) < 0.25) { var g = (1 - Math.abs(sunH) / 0.25) * 0.35; sky = [sky[0] + g * 0.6, sky[1] + g * 0.15, sky[2] - g * 0.2]; }
   $('water').classList.toggle('hidden', !underwater);
   gl.clearColor(sky[0], sky[1], sky[2], 1);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-  var mvp = mul(proj, viewMatrix(e, player.yaw, player.pitch));
+  var mvp = mul(proj, viewMatrix(e, player.yaw + sy, player.pitch + sp, roll));
   gl.uniformMatrix4fv(loc.uMVP, false, mvp);
   gl.uniform3fv(loc.uCam, e);
   gl.uniform3fv(loc.uFog, sky);
-  gl.uniform1f(loc.uFogFar, underwater ? 14 : 80);
-  gl.uniform1f(loc.uLight, light);
   gl.uniform1f(loc.uAlpha, 1);
-
-  var rebuilt = 0;
-  chunks.forEach(function (c) { if (c.dirty && rebuilt < 6) { buildChunk(c); rebuilt++; } });
   gl.disable(gl.BLEND);
-  chunks.forEach(function (c) { if (!c.opN) return; gl.bindBuffer(gl.ARRAY_BUFFER, c.op); attribs(); gl.drawArrays(gl.TRIANGLES, 0, c.opN); });
 
-  // entities
+  // sky: sun, moon, stars (no fog, behind everything)
+  if (!underwater) {
+    gl.uniform1f(loc.uFogFar, 1e6); gl.uniform1f(loc.uLight, 1);
+    gl.depthMask(false);
+    var skyA = []; drawSky(skyA, e, sky, light); drawArray(fxBuf, skyA);
+    gl.depthMask(true);
+  }
+  var fogFar = underwater ? 14 : RENDER_DIST * CS - 4;
+  gl.uniform1f(loc.uFogFar, fogFar);
+  gl.uniform1f(loc.uLight, light);
+
+  updateChunks(game.running ? 3 : 0);
+  var f = lookDir(), R = (RENDER_DIST + 0.6) * CS, visible = [];
+  chunkMap.forEach(function (c) {
+    if (!c.op || c.dirty && !c.opN && !c.waN) return;
+    var cx = c.cx * CS + 8 - e[0], cz = c.cz * CS + 8 - e[2];
+    if (cx * cx + cz * cz > R * R) return;
+    if (cx * f[0] + (WY / 2 - e[1]) * f[1] + cz * f[2] < -30) return; // behind the camera
+    visible.push(c);
+  });
+  visible.forEach(function (c) { if (!c.opN) return; gl.bindBuffer(gl.ARRAY_BUFFER, c.op); attribs(); gl.drawArrays(gl.TRIANGLES, 0, c.opN); });
+
+  // mobs, other players, dying mobs
   var a = [];
-  mobs.forEach(function (m) {
+  function drawMob(m) {
     if (m.type === 'zombie') drawHumanoid(a, m, hexCol('#2f8f8f'), hexCol('#3b3b9a'), hexCol('#5a9a4a'), true);
     else if (m.type === 'pig') drawPig(a, m);
     else if (m.type === 'dragon') drawDragon(a, m);
-  });
+  }
+  mobs.forEach(drawMob);
+  corpses.forEach(drawMob);
   Object.keys(others).forEach(function (id) {
     var o = others[id]; if (o.dead) return;
     var c = playerColors(o.name);
     drawHumanoid(a, o, c.shirt, c.pants, SKIN, false);
   });
-  if (a.length) {
-    gl.bindBuffer(gl.ARRAY_BUFFER, entBuf);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(a), gl.DYNAMIC_DRAW);
-    attribs();
-    gl.drawArrays(gl.TRIANGLES, 0, a.length / 8);
-  }
+  // particles
+  particles.forEach(function (q) { addCube(a, q.p[0], q.p[1], q.p[2], q.s * (0.4 + 0.6 * q.life / q.max), q.uv, q.col); });
+  drawArray(entBuf, a);
 
-  // outline of the block you're looking at
+  // outline + cracks on the block you're looking at
   if (target && !entTarget) {
-    var l = [], x = target.x, y = target.y, z = target.z, s = 0.002;
-    var P = [[x - s, y - s, z - s], [x + 1 + s, y - s, z - s], [x + 1 + s, y - s, z + 1 + s], [x - s, y - s, z + 1 + s],
-      [x - s, y + 1 + s, z - s], [x + 1 + s, y + 1 + s, z - s], [x + 1 + s, y + 1 + s, z + 1 + s], [x - s, y + 1 + s, z + 1 + s]];
+    var l = [], x = target.x, y = target.y, z = target.z, s2 = 0.002;
+    var P = [[x - s2, y - s2, z - s2], [x + 1 + s2, y - s2, z - s2], [x + 1 + s2, y - s2, z + 1 + s2], [x - s2, y - s2, z + 1 + s2],
+      [x - s2, y + 1 + s2, z - s2], [x + 1 + s2, y + 1 + s2, z - s2], [x + 1 + s2, y + 1 + s2, z + 1 + s2], [x - s2, y + 1 + s2, z + 1 + s2]];
     [[0, 1], [1, 2], [2, 3], [3, 0], [4, 5], [5, 6], [6, 7], [7, 4], [0, 4], [1, 5], [2, 6], [3, 7]].forEach(function (ed) {
       [P[ed[0]], P[ed[1]]].forEach(function (p) { l.push(p[0], p[1], p[2], WHITE_UV[0], WHITE_UV[1], 0.05, 0.05, 0.05); });
     });
-    gl.bindBuffer(gl.ARRAY_BUFFER, lineBuf);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(l), gl.DYNAMIC_DRAW);
-    attribs();
     gl.uniform1f(loc.uLight, 1);
-    gl.drawArrays(gl.LINES, 0, l.length / 8);
+    drawArray(lineBuf, l, gl.LINES);
+    if (breakState.p > 0) {
+      var ct = TI['crack' + Math.min(4, Math.floor(breakState.p * 5))], cr = [];
+      for (var fi = 0; fi < 6; fi++) {
+        var F = FACES[fi];
+        for (var kk = 0; kk < 6; kk++) {
+          var q = ORDER[kk], cc = F.c[q], uv = tileUV(ct, UVS[q][0], UVS[q][1]);
+          cr.push(x - 0.004 + cc[0] * 1.008, y - 0.004 + cc[1] * 1.008, z - 0.004 + cc[2] * 1.008, uv[0], uv[1], 1, 1, 1);
+        }
+      }
+      gl.enable(gl.BLEND); gl.depthMask(false);
+      drawArray(lineBuf, cr);
+      gl.depthMask(true); gl.disable(gl.BLEND);
+    }
     gl.uniform1f(loc.uLight, light);
   }
 
-  // water last, see-through
+  // see-through things last: clouds, then water
   gl.enable(gl.BLEND);
   gl.depthMask(false);
-  chunks.forEach(function (c) { if (!c.waN) return; gl.bindBuffer(gl.ARRAY_BUFFER, c.wa); attribs(); gl.drawArrays(gl.TRIANGLES, 0, c.waN); });
+  if (!underwater) {
+    gl.uniform1f(loc.uFogFar, 260); gl.uniform1f(loc.uAlpha, 0.78); gl.uniform1f(loc.uLight, 1);
+    var cl = []; drawClouds(cl, e, light); drawArray(fxBuf, cl);
+    gl.uniform1f(loc.uFogFar, fogFar); gl.uniform1f(loc.uAlpha, 1); gl.uniform1f(loc.uLight, light);
+  }
+  visible.forEach(function (c) { if (!c.waN) return; gl.bindBuffer(gl.ARRAY_BUFFER, c.wa); attribs(); gl.drawArrays(gl.TRIANGLES, 0, c.waN); });
   gl.depthMask(true);
+  gl.disable(gl.BLEND);
+
+  // first-person hand / held item, drawn on top in camera space
+  if (!player.dead) {
+    gl.clear(gl.DEPTH_BUFFER_BIT);
+    gl.uniformMatrix4fv(loc.uMVP, false, perspective(70 * Math.PI / 180, canvas.width / canvas.height, 0.02, 10));
+    gl.uniform3fv(loc.uCam, [0, 0, 0]);
+    gl.uniform1f(loc.uFogFar, 1e6);
+    gl.uniform1f(loc.uLight, Math.max(light, 0.45));
+    var hand = []; drawHand(hand); drawArray(fxBuf, hand);
+  }
 
   renderOverlay(mvp);
 }
@@ -1738,7 +2153,7 @@ function renderOverlay(mvp) {
   if (debugOn) {
     var hours = Math.floor(((game.time + 0.25) % 1) * 24);
     $('debug').textContent = 'XYZ: ' + player.pos.map(function (v) { return v.toFixed(1); }).join(' / ') +
-      '\nTime: ' + hours + ':00 ' + (isNight() ? '(night)' : '(day)') + '\nMobs: ' + mobs.length + '  Players: ' + (Object.keys(others).length + 1) +
+      '\nTime: ' + hours + ':00 ' + (isNight() ? '(night)' : '(day)') + '\nChunks: ' + chunkMap.size + '  Mobs: ' + mobs.length + '  Players: ' + (Object.keys(others).length + 1) +
       '\nMode: ' + game.mode + (net.role !== 'solo' ? '  (' + net.role + ')' : '');
   }
   $('clickhint').classList.toggle('hidden', locked || anyScreen() || !game.running);
@@ -1752,8 +2167,17 @@ function frame(t) {
   var frozen = net.role === 'solo' && (anyScreen() || !locked);
   if (!frozen) update(dt);
   else if (!$('inv').classList.contains('hidden')) tickFurnaces(dt); // furnaces keep cooking while you watch
-  render();
+  render(frozen ? 0 : dt);
 }
+
+// Browsers pause animation in background tabs. When hosting, keep the world (mobs, time, network)
+// ticking so friends aren't frozen while the host looks at another tab.
+var bgLast = 0;
+setInterval(function () {
+  var now = performance.now();
+  if (document.hidden && game.running && net.role === 'host') update(Math.min(0.25, (now - (bgLast || now)) / 1000));
+  bgLast = now;
+}, 100);
 
 /* ================= Starting / UI wiring ================= */
 function resetPlayer(pos) {
@@ -1763,7 +2187,7 @@ function resetPlayer(pos) {
 function startGame(fresh, saved) {
   mobs = []; others = others || {};
   craftGrid = new Array(9).fill(null); cursor = null;
-  chunks.forEach(function (c) { c.dirty = true; });
+  particles = []; corpses = [];
   if (saved) {
     resetPlayer(saved.pos || spawn);
     player.hp = saved.hp || 20;
@@ -1778,10 +2202,11 @@ function startGame(fresh, saved) {
   }
   if (net.role !== 'guest' && !saved) {
     for (var i = 0; i < 10; i++) {
-      var x = 4 + Math.floor(Math.random() * (WX - 8)), z = 4 + Math.floor(Math.random() * (WZ - 8)), y = topY(x, z);
+      var x = Math.floor(spawn[0] + (Math.random() - 0.5) * 60), z = Math.floor(spawn[2] + (Math.random() - 0.5) * 60), y = topY(x, z);
       if (getB(x, y - 1, z) === B.GRASS) makeMob('pig', x + 0.5, y, z + 0.5);
     }
   }
+  for (var pre = 0; pre < 6; pre++) updateChunks(40);
   game.running = true;
   hide('title');
   show('hud');
@@ -1806,7 +2231,8 @@ function newWorld() {
   game.name = $('name').value.trim() || game.name;
   store('blockcraft-name', game.name);
   net.role = 'solo'; net.peers = []; others = {}; furnaces = {};
-  generate(game.seed);
+  initGen(game.seed);
+  findSpawn();
   startGame(true);
   msg('World seed: ' + game.seed + '. Punch a tree to get started!');
 }
@@ -1818,8 +2244,12 @@ function continueWorld() {
   game.name = $('name').value.trim() || game.name;
   net.role = 'solo'; net.peers = []; others = {};
   furnaces = s.furnaces || {};
-  generate(game.seed);
-  (s.edits || []).forEach(function (e) { world[e[0]] = e[1]; edits.set(e[0], e[1]); });
+  initGen(game.seed);
+  (s.edits || []).forEach(function (e) {
+    if (s.v === 2) { var p = unpackKey(e[0]); applyEdit(p[0], p[1], p[2], e[1]); }
+    else applyEdit(e[0] % 128, Math.floor(e[0] / 16384), Math.floor(e[0] / 128) % 128, e[1]); // older 128x128 saves
+  });
+  if (s.spawn) spawn = s.spawn; else findSpawn();
   startGame(false, s);
   msg('Welcome back!');
 }
@@ -2075,7 +2505,7 @@ function renderInv() {
   } else {
     var r = matchGrid();
     html = '<div class="cgrid s' + gridSize + '">' + activeCells().map(function (i) { return slotBtn('grid', i, craftGrid[i]); }).join('') +
-      '</div><span class="arr" aria-hidden="true">→</span>' + slotBtn('out', 0, r ? { id: r.out, n: r.n } : null, ' big');
+      '</div><span class="arr" aria-hidden="true">→</span>' + slotBtn('out', 0, r ? { id: r.out, n: r.n } : null, r ? ' big ready' : ' big');
   }
   $('craftArea').innerHTML = html;
   var g = '';
@@ -2249,6 +2679,11 @@ $('quit').addEventListener('click', function () {
   net.peers = []; net.role = 'solo'; others = {};
   if (net.sig) { net.sig.close(); net.sig = null; net.code = null; }
   showTitle();
+});
+$('dist').value = String(RENDER_DIST);
+$('dist').addEventListener('change', function () {
+  RENDER_DIST = Number($('dist').value);
+  store('blockcraft-dist', RENDER_DIST);
 });
 $('pvp').addEventListener('change', function () {
   game.pvp = $('pvp').checked;
